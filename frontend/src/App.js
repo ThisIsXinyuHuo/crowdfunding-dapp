@@ -1,10 +1,11 @@
 
-import Header from "./components/Hedear"
+import Header from "./components/Header"
 import {  BrowserRouter as Router, Route, Routes } from 'react-router-dom'
 import Homepage from "./pages/Homepage"
 import UserProfile from "./pages/UserProfile"
 import CreateCampaign from "./pages/CreateCampaign"
 import CampaignDetails from "./pages/CampaignDetails"
+import { campaignDetailPath, createCampaignPath, rootPath, userProfilePath } from "./components/RouteConstants"
 
 
 function App() {
@@ -15,10 +16,10 @@ function App() {
       <Header/>
  
       <Routes>
-        <Route path="/" element = {<Homepage/>}/>
-        <Route path="/profile" element = {<UserProfile/>}/>
-        <Route path="/create-campaign" element = {<CreateCampaign/>}/>
-        <Route path="campaign/:id" element = {<CampaignDetails/>}/>
+        <Route path={rootPath} element = {<Homepage/>}/>
+        <Route path={userProfilePath} element = {<UserProfile/>}/>
+        <Route path={createCampaignPath} element = {<CreateCampaign/>}/>
+        <Route path={campaignDetailPath} element = {<CampaignDetails/>}/>
       </Routes>
      
 
