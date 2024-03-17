@@ -6,6 +6,7 @@ import UserProfile from "./pages/UserProfile"
 import CreateCampaign from "./pages/CreateCampaign"
 import CampaignDetails from "./pages/CampaignDetails"
 import { campaignDetailPath, createCampaignPath, rootPath, userProfilePath } from "./components/RouteConstants"
+import { useWeb3React } from '@web3-react/core'
 
 
 function App() {
