@@ -52,6 +52,7 @@ function Activate(){
             disabled={active}
             type = "button"
             text = "Connect"
+            style="bg-gray-600 hover:bg-gray-700 "
             clickHandler={handleActivate}
         />
     )
@@ -72,6 +73,7 @@ function Dectivate(){
             disabled={!active}
             type = "button"
             text = "Disconnect"
+            style="bg-gray-600 hover:bg-gray-700 "
             clickHandler={handleDeactivate}
         />
     )
@@ -98,9 +100,11 @@ const Header = () => {
 
         {!active ? <Activate/> : <Dectivate/>}
         
-       
-        <AddCampaignButton/>
-        <ProfileButton/>
+        {active ? <AddCampaignButton style="bg-gray-600 hover:bg-gray-700 "/>:<AddCampaignButton style="bg-gray-300 " disabled={!active}/>}
+
+        
+        {active ? <ProfileButton style="bg-gray-600 hover:bg-gray-700 "/>:<ProfileButton style="bg-gray-300" disabled={!active}/>}
+
         </div>
         
         </header>

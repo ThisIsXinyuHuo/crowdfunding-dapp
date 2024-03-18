@@ -1,10 +1,22 @@
-import { Link } from 'react-router-dom'
+import { useNavigate, Link } from "react-router-dom";
 import ButtonVariant from './ButtonVariant';
+import ContributeButton from './ContributeButton';
+import { buildCampaignPath } from "./RouteConstants"
+
 const CampaignCard = ({ campaign }) => {
+    const navigate = useNavigate();
+
+    const routeChange = () => {
+        navigate(buildCampaignPath(campaign.id))
+    };
+
     
     return (
-        <div id="campaign" className="rounded-xl shadow-lg w-80 bg-gray-100 m-6 p-4 ">
-            <Link to = {'/campaign/' + campaign.id}>
+        <div id="campaign" 
+            className="rounded-xl shadow-lg w-80 bg-gray-100 m-6 p-4 hover:cursor-pointer"
+            onClick={routeChange}
+        >
+           
                 <img
                     src = {campaign.imageURL}
                     alt = {campaign.tilte}
@@ -47,7 +59,7 @@ const CampaignCard = ({ campaign }) => {
                     <div className='flex justify-between items-center flex-wrap mt-4 mb2 text-gray-500 font-bold'>
                         <small>{campaign.backer} Backer{campaign.backer == 1 ? "":"s"}</small>
                         <div>
-                            <ButtonVariant type="button" text="CONTRIBUTE" style="w-30 text-[10px]"/>
+                            <ContributeButton campaign={campaign}/>
                         </div>
                     </div>
                     
@@ -55,7 +67,7 @@ const CampaignCard = ({ campaign }) => {
 
 
                 </div>
-            </Link>
+
 
         </div>
     )

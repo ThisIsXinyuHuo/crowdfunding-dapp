@@ -7,7 +7,7 @@ const ButtonVariant = ({type, text, clickHandler, style, disabled}) => {
         <button
             type = {type}
             // default style with customized style
-            className = {`px-6 py-2.5 bg-gray-600 hover:bg-gray-700  text-white font-semibold text-xs leading-tight rounded-full shadow-md ${style}`}
+            className = {`px-6 py-2.5   text-white font-semibold text-xs leading-tight rounded-full shadow-md ${style}`}
             
             onClick={clickHandler}
             disabled = {disabled}

@@ -7,7 +7,7 @@ const SearchBar = () => {
             <ButtonVariant 
             type = "button"
             text = "Search"
-            style = "w-[72px] h-full flex justify-center items-center cursor-pointer"
+            style = "w-[72px] h-full flex justify-center items-center cursor-pointer bg-gray-600 hover:bg-gray-700 "
         />
         
         </div>
