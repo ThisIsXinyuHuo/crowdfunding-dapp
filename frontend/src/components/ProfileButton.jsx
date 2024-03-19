@@ -2,7 +2,7 @@ import ButtonVariant from "./ButtonVariant";
 import { useNavigate } from "react-router-dom";
 import { userProfilePath } from "./RouteConstants";
 
-const ProfileButton = () => {
+const ProfileButton = ({disabled, style}) => {
     const navigate = useNavigate();
 
     const routeChange = () => {
@@ -10,7 +10,12 @@ const ProfileButton = () => {
     };
 
     return (
-        <ButtonVariant type="button" text="My Profile" clickHandler={routeChange}/>
+        <ButtonVariant type="button" 
+            text="My Profile" 
+            disabled={disabled} 
+            clickHandler={routeChange}
+            style={style}
+        />
     )
 }
 export default ProfileButton;

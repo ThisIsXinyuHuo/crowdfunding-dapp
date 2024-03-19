@@ -4,3 +4,6 @@ export const createCampaignPath = "/create-campaign";
 
 export const campaignDetailPath = "campaign/:id";
 export const buildCampaignPath = (campaignId) => `campaign/${campaignId}`;
+
+export const contributeCampaignPath = "contribute/campaign/:id";
+export const buildContributeCampaignPath = (campaignId) =>  `contribute/campaign/${campaignId}`;

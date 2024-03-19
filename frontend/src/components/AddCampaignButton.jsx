@@ -2,7 +2,7 @@ import ButtonVariant from "./ButtonVariant";
 import { useNavigate } from "react-router-dom";
 import { createCampaignPath } from "./RouteConstants";
 
-const AddCampaignButton = () => {
+const AddCampaignButton = ({style, disabled}) => {
     const navigate = useNavigate();
 
     const routeChange = () => {
@@ -10,7 +10,7 @@ const AddCampaignButton = () => {
     };
 
     return (
-        <ButtonVariant type="button" text="Create a Campaign" clickHandler={routeChange}/>
+        <ButtonVariant type="button" text="Create a Campaign" style={style} disabled={disabled} clickHandler={routeChange}/>
     )
 }
 export default AddCampaignButton;
