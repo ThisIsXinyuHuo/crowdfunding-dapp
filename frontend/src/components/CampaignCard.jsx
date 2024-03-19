@@ -57,7 +57,7 @@ const CampaignCard = ({ campaign }) => {
                     </div>
 
                     <div className='flex justify-between items-center flex-wrap mt-4 mb2 text-gray-500 font-bold'>
-                        <small>{campaign.backer} Contributor{campaign.backer == 1 ? "":"s"}</small>
+                        <small>{campaign.backer} Backer{campaign.backer == 1 ? "":"s"}</small>
                         <div>
                             <ContributeButton campaign={campaign}/>
                         </div>

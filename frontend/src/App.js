@@ -8,15 +8,9 @@ import CampaignDetails from "./pages/CampaignDetails"
 import { campaignDetailPath, createCampaignPath, rootPath, userProfilePath, contributeCampaignPath } from "./components/RouteConstants"
 import { useWeb3React } from '@web3-react/core'
 import ContributeCampaign from "./pages/ContributeCampaign"
-import { walletListener } from './utils/contractServices'
-import { useEffect } from 'react'
 
 
 function App() {
-  useEffect(() => {
-     walletListener()
-  }, [])
-
   return (
     <Router>
     <>
