@@ -32,7 +32,7 @@ const ContributeCampaign = (campaign) => {
         
       <div className="min-h-screen flex  justify-center sm:items-center ">
 
-        <div className=" w-[1100px] h-[500px] flex flex-col sm:flex-row items-center bg-gray-100 rounded-xl"> 
+        <div className=" w-[1100px] h-[600px] flex flex-col sm:flex-row items-center bg-gray-100 rounded-xl"> 
          
          <div className="p2-2   text-center sm:text-left sm:w-[50%] flex flex-col ml-7">
             
