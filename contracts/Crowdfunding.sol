@@ -27,17 +27,43 @@ contract Crowdfunding {
         _;
     }
 
+    function getCampaign(uint256 _campaignId) public view returns(Campaign memory) {
+        require(_campaignId <= numCampaigns, "Invalid campaign index");
+
+        return campaigns[_campaignId];
+    }
+
+    function getCampaigns() public view returns(Campaign[] memory) {
+        Campaign[] memory allCampaigns = new Campaign[](numCampaigns);
+
+        for (uint256 i = 0; i < numCampaigns; i++) {
+            allCampaigns[i] = campaigns[i];
+        }
+
+        return allCampaigns;
+    }
+
+    function getCampaigns(uint256 _page, uint256 _pageSize) public view returns(Campaign[] memory) {
+        uint256 startIndex = _page * _pageSize;
+        require(startIndex < numCampaigns, "Invalid page number");
+
+        uint256 endIndex = (startIndex + _pageSize) > numCampaigns ? numCampaigns : (startIndex + _pageSize);
+        Campaign[] memory campaignPage = new Campaign[](endIndex - startIndex);
+
+        for (uint256 i = startIndex; i < endIndex; i++) {
+            campaignPage[i - startIndex] = campaigns[i];
+        }
+
+        return campaignPage;
+    }
+
     // Function to create a new crowdfunding campaign
     function createCampaign(uint256 _goal, uint256 _deadline) external {
         require(_goal > 0, "Goal must be greater than 0");
         require(_deadline > block.timestamp, "Deadline must be in the future");
 
-        Campaign storage newCampaign = campaigns[numCampaigns++];
-        newCampaign.creator = msg.sender;
-        newCampaign.goal = _goal;
-        newCampaign.deadline = _deadline;
-        newCampaign.raisedAmount = 0;
-        newCampaign.closed = false;
+        Campaign memory campaign = Campaign(msg.sender, _goal, _deadline, 0, false);
+        campaigns[numCampaigns++] = campaign;
 
         emit CampaignCreated(numCampaigns - 1, msg.sender, _goal, _deadline);
     }
