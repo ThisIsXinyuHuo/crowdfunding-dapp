@@ -309,7 +309,7 @@ describe("Crowdfunding", function () {
 
                 assert.fail("Expected Campaign is closed");
             } catch (e) {
-                expect(e.message).to.include("Campaign must be open");
+                expect(e.message).to.include("Campaign is not open");
             }
         });
 
@@ -335,7 +335,7 @@ describe("Crowdfunding", function () {
             const result = await tx.wait();
             const event = result.logs[0].fragment.name;
 
-            expect(event).to.equal("ContributeCompleted");
+            expect(event).to.equal("ContributionCompleted");
             expect(result.logs[0].args[2]).to.equal(etherToWei("1"));
 
             const campaign = await crowdfunding.getCampaign(1);
@@ -352,7 +352,7 @@ describe("Crowdfunding", function () {
                 await crowdfunding.cancelCampaign(1);
                 assert.fail("Expected Campaign already closed")
             } catch (e) {
-                expect(e.message).to.include("Campaign must be open");
+                expect(e.message).to.include("Campaign is not open");
             }
         });
 
