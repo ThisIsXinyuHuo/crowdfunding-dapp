@@ -16,6 +16,8 @@ contract Crowdfunding {
 
     mapping(address => Profile) userProfileMap;
 
+    // creators
+
     constructor() {
         owner = msg.sender;
     }
@@ -23,8 +25,8 @@ contract Crowdfunding {
     // the state of th campaign
     enum State {
         OPEN,
-        CANCEL, // the campaign is cancelled by the creator; the campaign will become CANCEL after the creator cancel the project
-        SUCCESS, // the campaign raises enough ether before deadline; the campaign will become SUCESS after the creator withdraw ethers
+        CANCEL, // the campaign is canclled by the creator; the campaign will become CANCEL after the creator cancel the project and the contributors will get refund
+        SUCCESS, // the campaign raises enough ether before deadline; the campaign will become SUCESS after the creator withdraw ethers after the deadline
         CLOSE // the campaign does not raise enough money before deadline; the campaign will become CLOSE after refund to contributors
     }
 
@@ -136,28 +138,15 @@ contract Crowdfunding {
         campaigns[_campaignId].contributors.push(msg.sender);
     }
 
-    // Function to close a campaign
-    function closeCampaign(
+    function cancelCampaign(
         uint256 _campaignId
     ) external onlyCreator(_campaignId) {
         require(
             campaigns[_campaignId].state == State.OPEN,
             "Campaign is not open"
         );
-        require(
-            block.timestamp < campaigns[_campaignId].deadline,
-            "Campaign deadline has passed"
-        );
 
-        // Check if the goal is met
-        if (
-            campaigns[_campaignId].raisedAmount >= campaigns[_campaignId].goal
-        ) {
-            // Release funds to campaign creator
-            withdraw(_campaignId);
-        } else {
-            refund(_campaignId);
-        }
+        refund(_campaignId);
 
         campaigns[_campaignId].state = State.CANCEL;
 
@@ -201,8 +190,11 @@ contract Crowdfunding {
 
     function requestWithdraw(uint256 _campaignId) external {
         // an external function call by users to request withdraw
-        // require: state is not CANCEL/CLOSE/SUCCESS; the deadline is passed and raised enough money; the msg.sender is project creator
-        // the campaign will be marked as SUCCESS after requestWithdraw
+        // require: state is not CANCEL/CLOSE/SUCCESS; enough money is raised before deadline;
+        // the msg.sender is project creator
+        // creator can withdraw the fund before or after the deadline; but if he/she withdraw before ddl,
+        // fundraising is ended and no more contributors are allowed
+        // the campaign will be marked as SUCCESS after requestWithdraw;
     }
 
     function requestRefund(uint256 _campaignId) external {
