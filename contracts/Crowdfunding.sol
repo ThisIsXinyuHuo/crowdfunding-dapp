@@ -29,8 +29,9 @@ contract Crowdfunding {
     }
 
     struct Profile {
-        Contribution[] contributions;
+        mapping(uint256 => Contribution) contributions; // campaign id to contribution
         Campaign[] createdCampaigns;
+        uint256[] contributedCampaignIds;
     }
 
     // Struct to represent a crowdfunding campaign
@@ -59,6 +60,12 @@ contract Crowdfunding {
         address indexed creator,
         uint256 goal,
         uint256 deadline
+    );
+
+    event ContributionCompleted(
+        uint256 indexed campaignId,
+        address indexed contributor,
+        uint256 amount
     );
 
     event RefundCompleted(
@@ -132,8 +139,15 @@ contract Crowdfunding {
         ); cam raise more money than goal*/
 
         campaigns[_campaignId].raisedAmount += msg.value;
-        userProfileMap[msg.sender].contributions.push(Contribution(_campaignId, msg.value));
+        if (userProfileMap[msg.sender].contributions[_campaignId].amount > 0) {
+            userProfileMap[msg.sender].contributions[_campaignId].amount += msg.value;
+        } else {
+            userProfileMap[msg.sender].contributions[_campaignId] = Contribution(_campaignId, msg.value);
+            userProfileMap[msg.sender].contributedCampaignIds.push(_campaignId);
+        }
+        
         campaigns[_campaignId].contributors.push(msg.sender);
+        emit ContributionCompleted(_campaignId, msg.sender, userProfileMap[msg.sender].contributions[_campaignId].amount);
     }
 
     // Function to close a campaign
@@ -180,15 +194,10 @@ contract Crowdfunding {
         require(campaigns[_campaignId].state == State.OPEN, "Campaign must be open to request refund");
         require(msg.sender != campaigns[_campaignId].creator, "Creator cannot request refund");
 
-        for (uint256 i = 0; i < userProfileMap[msg.sender].contributions.length; i++) {
-            if (userProfileMap[msg.sender].contributions[i].campaignId == _campaignId) {
-                require(userProfileMap[msg.sender].contributions[i].amount > 0, "Nothing to be refunded");
-                payTo(_to, userProfileMap[msg.sender].contributions[i].amount);
-                userProfileMap[msg.sender].contributions[i].amount = 0;
-                emit RefundCompleted(_campaignId, _to, userProfileMap[msg.sender].contributions[i].amount);
-                break;
-            }
-        }
+        require(userProfileMap[msg.sender].contributions[_campaignId].amount > 0, "Nothing to be refunded");
+        payTo(_to, userProfileMap[msg.sender].contributions[_campaignId].amount);
+        emit RefundCompleted(_campaignId, _to, userProfileMap[msg.sender].contributions[_campaignId].amount);
+        userProfileMap[msg.sender].contributions[_campaignId].amount = 0;
     }
 
     function refund(uint256 _campaignId) internal {
@@ -260,7 +269,13 @@ contract Crowdfunding {
     }
 
     function getContributedCampaigns() public view returns (Contribution[] memory) {
-        return userProfileMap[msg.sender].contributions;
+        Contribution[] memory contributions = new Contribution[](userProfileMap[msg.sender].contributedCampaignIds.length);
+        for (uint256 i = 0; i < userProfileMap[msg.sender].contributedCampaignIds.length; i++) {
+            uint256 campaignId = userProfileMap[msg.sender].contributedCampaignIds[i];
+            contributions[i] = userProfileMap[msg.sender].contributions[campaignId];
+        }
+
+        return contributions;
     }
 
     function getCreatedCampaigns() public view returns (Campaign[] memory) {
