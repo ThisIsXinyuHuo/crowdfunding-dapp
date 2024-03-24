@@ -14,6 +14,8 @@ contract Crowdfunding {
 
     mapping(address => Profile) userProfileMap;
 
+    // creators
+
     constructor() {
         owner = msg.sender;
     }
@@ -21,14 +23,15 @@ contract Crowdfunding {
     // the state of th campaign
     enum State {
         OPEN,
-        CANCEL, // the campaign is cancelled by the creator; the campaign will become CANCEL after the creator cancel the project
-        SUCCESS, // the campaign raises enough ether before deadline; the campaign will become SUCESS after the creator withdraw ethers
+        CANCEL, // the campaign is canclled by the creator; the campaign will become CANCEL after the creator cancel the project and the contributors will get refund
+        SUCCESS, // the campaign raises enough ether before deadline; the campaign will become SUCESS after the creator withdraw ethers after the deadline
         CLOSE // the campaign does not raise enough money before deadline; the campaign will become CLOSE after refund to contributors
     }
 
     struct Profile {
-        Contribution[] contributions;
+        mapping(uint256 => Contribution) contributions; // campaign id to contribution
         Campaign[] createdCampaigns;
+        uint256[] contributedCampaignIds;
     }
 
     // Struct to represent a crowdfunding campaign
@@ -59,6 +62,12 @@ contract Crowdfunding {
         uint256 deadline
     );
 
+    event ContributionCompleted(
+        uint256 indexed campaignId,
+        address indexed contributor,
+        uint256 amount
+    );
+
     event RefundCompleted(
         uint256 indexed campaignId,
         address indexed to,
@@ -81,6 +90,24 @@ contract Crowdfunding {
         require(
             msg.sender == campaigns[_campaignId].creator,
             "Only campaign creator can call this function"
+        );
+        _;
+    }
+
+    // Modifier to ensure the campaign is open
+    modifier onlyOpen(uint256 _campaignId) {
+        require(
+            campaigns[_campaignId].state == State.OPEN,
+            "Campaign must be open"
+        );
+        _;
+    }
+
+    // Modifier to ensure the deadline has passed
+    modifier afterDeadline(uint256 _campaignId) {
+        require(
+            block.timestamp >= campaigns[_campaignId].deadline,
+            "Deadline has not passed yet"
         );
         _;
     }
@@ -141,12 +168,19 @@ contract Crowdfunding {
         ); cam raise more money than goal*/
 
         campaigns[_campaignId].raisedAmount += msg.value;
-        userProfileMap[msg.sender].contributions.push(
-            Contribution(_campaignId, msg.value)
-        );
+
+        if (userProfileMap[msg.sender].contributions[_campaignId].amount > 0) {
+            userProfileMap[msg.sender].contributions[_campaignId].amount += msg.value;
+        } else {
+            userProfileMap[msg.sender].contributions[_campaignId] = Contribution(_campaignId, msg.value);
+            userProfileMap[msg.sender].contributedCampaignIds.push(_campaignId);
+        }
+        
         campaigns[_campaignId].contributors.push(msg.sender);
 
+
         emit ContributeCompleted(_campaignId, msg.sender, msg.value);
+
     }
 
     // Function to close a campaign
@@ -157,20 +191,8 @@ contract Crowdfunding {
             campaigns[_campaignId].state == State.OPEN,
             "Campaign is not open"
         );
-        require(
-            block.timestamp < campaigns[_campaignId].deadline,
-            "Campaign deadline has passed"
-        );
 
-        // Check if the goal is met
-        if (
-            campaigns[_campaignId].raisedAmount >= campaigns[_campaignId].goal
-        ) {
-            // Release funds to campaign creator
-            withdraw(_campaignId);
-        } else {
-            refund(_campaignId);
-        }
+        refund(_campaignId);
 
         campaigns[_campaignId].state = State.CANCEL;
 
@@ -183,37 +205,30 @@ contract Crowdfunding {
         require(success);
     }
 
-    function withdraw(uint256 _campaignId) internal {
-        address to = campaigns[_campaignId].creator;
-        uint256 amount = campaigns[_campaignId].raisedAmount;
-        payTo(to, amount);
-        //emit action
+    function withdraw(uint256 _campaignId) internal onlyCreator(_campaignId) onlyOpen(_campaignId) afterDeadline(_campaignId) {
+        Campaign storage campaign = campaigns[_campaignId];
+        require(campaign.raisedAmount >= campaign.goal, "Campaign did not reach its goal");
+
+        uint256 amount = campaign.raisedAmount;
+        campaign.raisedAmount = 0;
+        campaign.state = State.SUCCESS;
+        payable(msg.sender).transfer(amount);
     }
 
     function refund(uint256 _campaignId, address _to) internal {
-        for (
-            uint256 i = 0;
-            i < userProfileMap[msg.sender].contributions.length;
-            i++
-        ) {
-            if (
-                userProfileMap[msg.sender].contributions[i].campaignId ==
-                _campaignId
-            ) {
-                require(
-                    userProfileMap[msg.sender].contributions[i].amount > 0,
-                    "Nothing to be refunded"
-                );
-                payTo(_to, userProfileMap[msg.sender].contributions[i].amount);
-                userProfileMap[msg.sender].contributions[i].amount = 0;
-                emit RefundCompleted(
-                    _campaignId,
-                    _to,
-                    userProfileMap[msg.sender].contributions[i].amount
-                );
-                break;
-            }
-        }
+        require(campaigns[_campaignId].state == State.OPEN, "Campaign must be open to request refund");
+        require(msg.sender != campaigns[_campaignId].creator, "Creator cannot request refund");
+        require(
+            block.timestamp > campaigns[_campaignId].deadline && 
+            campaigns[_campaignId].raisedAmount < campaigns[_campaignId].goal, 
+            "Campaign deadline has not passed or the campaign is successful; in either case, you cannot withdraw"
+            );
+
+        require(userProfileMap[msg.sender].contributions[_campaignId].amount > 0, "Nothing to be refunded");
+        payTo(_to, userProfileMap[msg.sender].contributions[_campaignId].amount);
+        emit RefundCompleted(_campaignId, _to, userProfileMap[msg.sender].contributions[_campaignId].amount);
+        userProfileMap[msg.sender].contributions[_campaignId].amount = 0;
+
     }
 
     function refund(uint256 _campaignId) internal {
@@ -228,13 +243,16 @@ contract Crowdfunding {
         }
     }
 
-    function requestWithdraw(uint256 _campaignId) external {
+    function requestWithdraw(uint256 _campaignId) external onlyCreator(_campaignId) {
         // an external function call by users to request withdraw
         // require: state is not CANCEL/CLOSE/SUCCESS; enough money is raised before deadline;
         // the msg.sender is project creator
         // creator can withdraw the fund before or after the deadline; but if he/she withdraw before ddl,
         // fundraising is ended and no more contributors are allowed
         // the campaign will be marked as SUCCESS after requestWithdraw;
+
+        withdraw(_campaignId);
+
     }
 
     function requestRefund(uint256 _campaignId) external {
@@ -310,12 +328,16 @@ contract Crowdfunding {
         return campaigns[_campaignId].contributors;
     }
 
-    function getContributedCampaigns()
-        public
-        view
-        returns (Contribution[] memory)
-    {
-        return userProfileMap[msg.sender].contributions;
+
+    function getContributedCampaigns() public view returns (Contribution[] memory) {
+        Contribution[] memory contributions = new Contribution[](userProfileMap[msg.sender].contributedCampaignIds.length);
+        for (uint256 i = 0; i < userProfileMap[msg.sender].contributedCampaignIds.length; i++) {
+            uint256 campaignId = userProfileMap[msg.sender].contributedCampaignIds[i];
+            contributions[i] = userProfileMap[msg.sender].contributions[campaignId];
+        }
+
+        return contributions;
+
     }
 
     function getCreatedCampaigns() public view returns (Campaign[] memory) {
