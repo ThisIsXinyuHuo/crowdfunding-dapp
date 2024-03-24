@@ -88,6 +88,24 @@ contract Crowdfunding {
         _;
     }
 
+    // Modifier to ensure the campaign is open
+    modifier onlyOpen(uint256 _campaignId) {
+        require(
+            campaigns[_campaignId].state == State.OPEN,
+            "Campaign must be open"
+        );
+        _;
+    }
+
+    // Modifier to ensure the deadline has passed
+    modifier afterDeadline(uint256 _campaignId) {
+        require(
+            block.timestamp >= campaigns[_campaignId].deadline,
+            "Deadline has not passed yet"
+        );
+        _;
+    }
+
     // Function to create a new crowdfunding campaign
     function createCampaign(
         string memory _title,
@@ -172,11 +190,14 @@ contract Crowdfunding {
         require(success);
     }
 
-    function withdraw(uint256 _campaignId) internal {
-        address to = campaigns[_campaignId].creator;
-        uint256 amount = campaigns[_campaignId].raisedAmount;
-        payTo(to, amount);
-        //emit action
+    function withdraw(uint256 _campaignId) internal onlyCreator(_campaignId) onlyOpen(_campaignId) afterDeadline(_campaignId) {
+        Campaign storage campaign = campaigns[_campaignId];
+        require(campaign.raisedAmount >= campaign.goal, "Campaign did not reach its goal");
+
+        uint256 amount = campaign.raisedAmount;
+        campaign.raisedAmount = 0;
+        campaign.state = State.SUCCESS;
+        payable(msg.sender).transfer(amount);
     }
 
     function refund(uint256 _campaignId, address _to) internal {
@@ -207,13 +228,14 @@ contract Crowdfunding {
         }
     }
 
-    function requestWithdraw(uint256 _campaignId) external {
+    function requestWithdraw(uint256 _campaignId) external onlyCreator(_campaignId) {
         // an external function call by users to request withdraw
         // require: state is not CANCEL/CLOSE/SUCCESS; enough money is raised before deadline;
         // the msg.sender is project creator
         // creator can withdraw the fund before or after the deadline; but if he/she withdraw before ddl,
         // fundraising is ended and no more contributors are allowed
         // the campaign will be marked as SUCCESS after requestWithdraw;
+        withdraw(_campaignId);
     }
 
     function requestRefund(uint256 _campaignId) external {
