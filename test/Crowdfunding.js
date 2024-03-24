@@ -17,7 +17,7 @@ describe("Crowdfunding", function () {
     beforeEach(async function () {
         [address1, address2, ...address] = await ethers.getSigners();
 
-        const Crowdfunding = await ethers.getContractFactory("Crowdfunding");
+        Crowdfunding = await ethers.getContractFactory("Crowdfunding");
         crowdfunding = await Crowdfunding.deploy();
 
         await Promise.all(["1", "2", "3", "4", "5"].map(async (idx) => {
@@ -91,17 +91,17 @@ describe("Crowdfunding", function () {
 
     describe("Refund", async () => {
         it("Should refund when requested", async () => {
-            
-            await crowdfunding.connect(address1);
-            const timestamp = await time.latest();
-            await crowdfunding.createCampaign("test", "test", timestamp + 60, 123, "testURL");
-            await crowdfunding.connect(address2).contribute(5, {value: 1});
-            await time.increase(3600);
-            const tx = await crowdfunding.connect(address2).requestRefund(5);
+
+            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
+            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
+            const tx = await crowdfunding.connect(address2).requestRefund(1);
+
             const result = await tx.wait();
             const event = result.logs[0].fragment.name;
 
             expect(event).to.equal("RefundCompleted");
+
+            expect(result.logs[0].args[2]).to.equal(etherToWei("4"));
 
         });
 
@@ -183,6 +183,17 @@ describe("Crowdfunding", function () {
     })
 
     describe("contribute", async () => {
+        it ("Should the contributed amount be correct if contributed multiple times", async () => {
+            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
+            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
+
+            const contributedCampaigns = await crowdfunding.connect(address2).getContributedCampaigns();
+            const campaign = await crowdfunding.getCampaign(1);
+            expect(contributedCampaigns.length).to.equal(1);
+            expect(contributedCampaigns[0][1]).to.equal(etherToWei("4"));
+            expect(campaign[7]).to.equal(etherToWei("4"));
+        });
+
         it ("Should not allow contributing when the campaign is closed", async () => {
             
      
@@ -217,9 +228,17 @@ describe("Crowdfunding", function () {
     
 
         it ("Should successfully contribute if everything is ok", async () => {
-            await crowdfunding.connect(address2).contribute(1, {value: 1});
+
+            const tx = await crowdfunding.connect(address2).contribute(1, {value: etherToWei("1")});
+            const result = await tx.wait();
+            const event = result.logs[0].fragment.name;
+
+            expect(event).to.equal("ContributionCompleted");
+            expect(result.logs[0].args[2]).to.equal(etherToWei("1"));
+
+
             const campaign = await crowdfunding.getCampaign(1);
-            expect(campaign.raisedAmount).to.equal(1);
+            expect(campaign.raisedAmount).to.equal(etherToWei("1"));
         });
     })
 
