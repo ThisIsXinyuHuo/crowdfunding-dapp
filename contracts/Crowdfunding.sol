@@ -14,9 +14,7 @@ contract Crowdfunding {
     // id => campaign
     Campaign[] private campaigns;
 
-    // contributor => campaigns he/she contributed to
-    mapping(address => Contribution[]) userContributionMap;
-    mapping(address => Campaign[]) userCampaignMap;
+    mapping(address => Profile) userProfileMap;
 
     constructor() {
         owner = msg.sender;
@@ -28,6 +26,11 @@ contract Crowdfunding {
         CANCEL, // the campaign is cancelled by the creator; the campaign will become CANCEL after the creator cancel the project
         SUCCESS, // the campaign raises enough ether before deadline; the campaign will become SUCESS after the creator withdraw ethers
         CLOSE // the campaign does not raise enough money before deadline; the campaign will become CLOSE after refund to contributors
+    }
+
+    struct Profile {
+        Crowdfunding.Contribution[] contributions;
+        Crowdfunding.Campaign[] createdCampaigns;
     }
 
     // Struct to represent a crowdfunding campaign
@@ -102,7 +105,7 @@ contract Crowdfunding {
         campaign.contributors = new address[](0);
 
         campaigns.push(campaign);
-        userCampaignMap[msg.sender].push(campaign);
+        userProfileMap[msg.sender].createdCampaigns.push(campaign);
 
         emit CampaignCreated(numCampaigns, msg.sender, _goal, _deadline);
     }
@@ -129,7 +132,7 @@ contract Crowdfunding {
         ); cam raise more money than goal*/
 
         campaigns[_campaignId].raisedAmount += msg.value;
-        userContributionMap[msg.sender].push(Contribution(_campaignId, msg.value));
+        userProfileMap[msg.sender].contributions.push(Contribution(_campaignId, msg.value));
         campaigns[_campaignId].contributors.push(msg.sender);
     }
 
@@ -177,12 +180,12 @@ contract Crowdfunding {
         require(campaigns[_campaignId].state == State.OPEN, "Campaign must be open to request refund");
         require(msg.sender != campaigns[_campaignId].creator, "Creator cannot request refund");
 
-        for (uint256 i = 0; i < userContributionMap[_to].length; i++) {
-            if (userContributionMap[_to][i].campaignId == _campaignId) {
-                require(userContributionMap[_to][i].amount > 0, "Nothing to be refunded");
-                payTo(_to, userContributionMap[_to][i].amount);
-                userContributionMap[_to][i].amount = 0;
-                emit RefundCompleted(_campaignId, _to, userContributionMap[_to][i].amount);
+        for (uint256 i = 0; i < userProfileMap[msg.sender].contributions.length; i++) {
+            if (userProfileMap[msg.sender].contributions[i].campaignId == _campaignId) {
+                require(userProfileMap[msg.sender].contributions[i].amount > 0, "Nothing to be refunded");
+                payTo(_to, userProfileMap[msg.sender].contributions[i].amount);
+                userProfileMap[msg.sender].contributions[i].amount = 0;
+                emit RefundCompleted(_campaignId, _to, userProfileMap[msg.sender].contributions[i].amount);
                 break;
             }
         }
