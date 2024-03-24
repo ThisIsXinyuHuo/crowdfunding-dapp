@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 // Import necessary libraries and interfaces
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "hardhat/console.sol";
 
 contract Crowdfunding {
     // state variables
@@ -12,10 +13,7 @@ contract Crowdfunding {
     // id => campaign
     Campaign[] private campaigns;
 
-    // contributor => campaigns he/she contributed to
-    mapping(address => uint256[]) user2Campaigns;
-
-    // creators
+    mapping(address => Profile) userProfileMap;
 
     constructor() {
         owner = msg.sender;
@@ -24,9 +22,14 @@ contract Crowdfunding {
     // the state of th campaign
     enum State {
         OPEN,
-        CANCEL, // the campaign is canclled by the creator; the campaign will become CANCEL after the creator cancel the project and the contributors will get refund
-        SUCCESS, // the campaign raises enough ether before deadline; the campaign will become SUCESS after the creator withdraw ethers after the deadline
+        CANCEL, // the campaign is cancelled by the creator; the campaign will become CANCEL after the creator cancel the project
+        SUCCESS, // the campaign raises enough ether before deadline; the campaign will become SUCESS after the creator withdraw ethers
         CLOSE // the campaign does not raise enough money before deadline; the campaign will become CLOSE after refund to contributors
+    }
+
+    struct Profile {
+        Contribution[] contributions;
+        Campaign[] createdCampaigns;
     }
 
     // Struct to represent a crowdfunding campaign
@@ -44,12 +47,23 @@ contract Crowdfunding {
         address[] contributors;
     }
 
+    struct Contribution {
+        uint256 campaignId;
+        uint256 amount;
+    }
+
     // Event emitted when a new campaign is created
     event CampaignCreated(
         uint256 indexed campaignId,
         address indexed creator,
         uint256 goal,
         uint256 deadline
+    );
+
+    event RefundCompleted(
+        uint256 indexed campaignId,
+        address indexed to,
+        uint256 amount
     );
 
     // Modifier to ensure only campaign creator can call certain functions
@@ -90,6 +104,7 @@ contract Crowdfunding {
         campaign.contributors = new address[](0);
 
         campaigns.push(campaign);
+        userProfileMap[msg.sender].createdCampaigns.push(campaign);
 
         emit CampaignCreated(numCampaigns, msg.sender, _goal, _deadline);
     }
@@ -116,19 +131,34 @@ contract Crowdfunding {
         ); cam raise more money than goal*/
 
         campaigns[_campaignId].raisedAmount += msg.value;
-        user2Campaigns[msg.sender].push(_campaignId);
+        userProfileMap[msg.sender].contributions.push(
+            Contribution(_campaignId, msg.value)
+        );
         campaigns[_campaignId].contributors.push(msg.sender);
     }
 
-    function cancelCampaign(
+    // Function to close a campaign
+    function closeCampaign(
         uint256 _campaignId
     ) external onlyCreator(_campaignId) {
         require(
             campaigns[_campaignId].state == State.OPEN,
             "Campaign is not open"
         );
+        require(
+            block.timestamp < campaigns[_campaignId].deadline,
+            "Campaign deadline has passed"
+        );
 
-        refund(_campaignId);
+        // Check if the goal is met
+        if (
+            campaigns[_campaignId].raisedAmount >= campaigns[_campaignId].goal
+        ) {
+            // Release funds to campaign creator
+            withdraw(_campaignId);
+        } else {
+            refund(_campaignId);
+        }
 
         campaigns[_campaignId].state = State.CANCEL;
 
@@ -147,8 +177,51 @@ contract Crowdfunding {
         //emit action
     }
 
+    function refund(uint256 _campaignId, address _to) internal {
+        require(
+            campaigns[_campaignId].state == State.OPEN,
+            "Campaign must be open to request refund"
+        );
+        require(
+            msg.sender != campaigns[_campaignId].creator,
+            "Creator cannot request refund"
+        );
+
+        for (
+            uint256 i = 0;
+            i < userProfileMap[msg.sender].contributions.length;
+            i++
+        ) {
+            if (
+                userProfileMap[msg.sender].contributions[i].campaignId ==
+                _campaignId
+            ) {
+                require(
+                    userProfileMap[msg.sender].contributions[i].amount > 0,
+                    "Nothing to be refunded"
+                );
+                payTo(_to, userProfileMap[msg.sender].contributions[i].amount);
+                userProfileMap[msg.sender].contributions[i].amount = 0;
+                emit RefundCompleted(
+                    _campaignId,
+                    _to,
+                    userProfileMap[msg.sender].contributions[i].amount
+                );
+                break;
+            }
+        }
+    }
+
     function refund(uint256 _campaignId) internal {
         // an internal function perform refunds to all the contributors of campaign _campaignId
+        for (
+            uint256 i = 0;
+            i < campaigns[_campaignId].contributors.length;
+            i++
+        ) {
+            address contributorAddress = campaigns[_campaignId].contributors[i];
+            refund(_campaignId, contributorAddress);
+        }
     }
 
     function requestWithdraw(uint256 _campaignId) external {
@@ -164,6 +237,7 @@ contract Crowdfunding {
         // an external function call by users to request refund
         // require: state is not CANCEL/CLOSE/SUCCESS a; the deadline is passed and does not raised enough money;
         // the campaign will be marked as CLOSE after requestRefund
+        refund(_campaignId, msg.sender);
     }
 
     // Function signature for external verification
@@ -212,5 +286,17 @@ contract Crowdfunding {
         uint256 _campaignId
     ) public view returns (address[] memory) {
         return campaigns[_campaignId].contributors;
+    }
+
+    function getContributedCampaigns()
+        public
+        view
+        returns (Contribution[] memory)
+    {
+        return userProfileMap[msg.sender].contributions;
+    }
+
+    function getCreatedCampaigns() public view returns (Campaign[] memory) {
+        return userProfileMap[msg.sender].createdCampaigns;
     }
 }
