@@ -174,4 +174,59 @@ describe("Crowdfunding", function () {
             expect(campaign.closed).to.equal(true);
         });
     })
+
+    describe("requestWithdraw", async () => {
+        it ("Should not be able to withdraw from the campaign if it is not open", async () => {
+            await crowdfunding.connect(address1.address);
+
+            try {
+                await crowdfunding.requestWithdraw(1);
+                assert.fail("Expected Campaign is not open")
+            } catch (e) {
+                expect(e.message).to.include("Campaign is not open");
+            }
+        });
+
+        it ("Should not be able to withdraw from the campaign if its deadline has not passed", async () => {
+            await crowdfunding.connect(address1.address);
+
+            try {
+                await crowdfunding.requestWithdraw(1);
+                assert.fail("Expected Deadline has not passed")
+            } catch (e) {
+                expect(e.message).to.include("Deadline has not passed");
+            }
+        });
+
+        it ("Should not be able to withdraw from the campaign if enough money is not raised", async () => {
+            await crowdfunding.connect(address1.address);
+
+            try {
+                const currentDate = new Date();
+                const timestamp = currentDate.getTime();
+                await crowdfunding.createCampaign(10, timestamp + 1);
+                await crowdfunding.requestWithdraw(5);
+                assert.fail("Expected Did not raised enough money")
+            } catch (e) {
+                expect(e.message).to.include("Deadline Did not raised enough money");
+            }
+        });
+
+        it ("Should be able to withdraw from the campaign if everything is ok", async () => {
+            await crowdfunding.connect(address1.address);
+
+            try {
+                const currentDate = new Date();
+                const timestamp = currentDate.getTime();
+                await crowdfunding.createCampaign(10, timestamp + 1);
+                await crowdfunding.createCampaign(5, 10);
+                await crowdfunding.requestWithdraw(5);
+
+                const campaign = await crowdfunding.getCampaign(5);
+                expect(campaign.state).to.equal(crowdfunding.State.SUCCESS);
+            } catch (e) {
+                assert.fail("Expected not receiving exceptions")
+            }
+        });
+    })
 });
