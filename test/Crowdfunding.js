@@ -107,11 +107,7 @@ describe("Crowdfunding", function () {
             const event = result.logs[0].fragment.name;
 
             expect(event).to.equal("RefundCompleted");
-
-
             expect(result.logs[0].args[2]).to.equal(etherToWei("4"));
-
-
         });
 
         it("Should not refund when requester is creator", async () => {
@@ -139,7 +135,6 @@ describe("Crowdfunding", function () {
         // });
 
         it("Should not refund when already refunded", async () => {
-           
             await crowdfunding.connect(address1);
             const timestamp = await time.latest();
             await crowdfunding.createCampaign("test", "test", timestamp + 60, 123, "testURL");
@@ -153,7 +148,21 @@ describe("Crowdfunding", function () {
                 await crowdfunding.connect(address2).requestRefund(5);
                 assert.fail("Expected already refunded exception")
             } catch (e) {
-                expect(e.message).to.include("Campaign must be open to request refund");
+                expect(e.message).to.include("Nothing to be refunded");
+            }
+        });
+
+        it("Should not refund when the campaign is still active", async () => {
+            await crowdfunding.connect(address1);
+            const timestamp = await time.latest();
+            await crowdfunding.createCampaign("test", "test", timestamp + 60, 123, "testURL");
+            await crowdfunding.connect(address2).contribute(5, {value: 2});
+
+            try {
+                await crowdfunding.connect(address2).requestRefund(5);
+                assert.fail("Expected still active exception")
+            } catch (e) {
+                expect(e.message).to.include("Campaign deadline has not passed or the campaign is successful; in either case, you cannot withdraw");
             }
         });
     });
@@ -204,23 +213,17 @@ describe("Crowdfunding", function () {
         });
 
         it ("Should not allow contributing when the campaign is closed", async () => {
-            
-     
-
             try {
                 await crowdfunding.connect(address1).cancelCampaign(1);
                 await crowdfunding.connect(address2).contribute(1, {value: 1});
 
                 assert.fail("Expected Campaign is closed");
             } catch (e) {
-              
-                expect(e.message).to.include("Campaign is not open");
+                expect(e.message).to.include("Campaign must be open");
             }
         });
 
         it ("Should not allow contributing when the campaign's deadline has passed", async () => {
-        
-
             try {
                 await crowdfunding.connect(address1);
                 const timestamp = await time.latest();
@@ -237,16 +240,12 @@ describe("Crowdfunding", function () {
     
 
         it ("Should successfully contribute if everything is ok", async () => {
-          
-
             const tx = await crowdfunding.connect(address2).contribute(1, {value: etherToWei("1")});
             const result = await tx.wait();
             const event = result.logs[0].fragment.name;
 
-            expect(event).to.equal("ContributeCompleted");
+            expect(event).to.equal("ContributionCompleted");
             expect(result.logs[0].args[2]).to.equal(etherToWei("1"));
-
-
 
             const campaign = await crowdfunding.getCampaign(1);
             expect(campaign.raisedAmount).to.equal(etherToWei("1"));
@@ -262,7 +261,7 @@ describe("Crowdfunding", function () {
                 await crowdfunding.cancelCampaign(1);
                 assert.fail("Expected Campaign already closed")
             } catch (e) {
-                expect(e.message).to.include("Campaign is not open");
+                expect(e.message).to.include("Campaign must be open");
             }
         });
 
