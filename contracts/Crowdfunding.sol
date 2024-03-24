@@ -85,6 +85,12 @@ contract Crowdfunding {
         uint256 amount
     );
 
+    event WithdrawCompleted(
+        uint256 indexed campaignId,
+        address indexed to,
+        uint256 amount
+    );
+
     // Modifier to ensure only campaign creator can call certain functions
     modifier onlyCreator(uint256 _campaignId) {
         require(
@@ -98,7 +104,7 @@ contract Crowdfunding {
     modifier onlyOpen(uint256 _campaignId) {
         require(
             campaigns[_campaignId].state == State.OPEN,
-            "Campaign must be open"
+            "Campaign is not open"
         );
         _;
     }
@@ -148,14 +154,12 @@ contract Crowdfunding {
 
     // Function to contribute funds to a campaign
     // the user pay ethers to the contract when calling this function (msg.value)
-    function contribute(uint256 _campaignId) external payable {
+    function contribute(
+        uint256 _campaignId
+    ) external payable onlyOpen(_campaignId) {
         require(
             msg.sender != campaigns[_campaignId].creator,
             "Creator can not contribute to its own campaign"
-        );
-        require(
-            campaigns[_campaignId].state == State.OPEN,
-            "Campaign is not open"
         );
         require(
             block.timestamp < campaigns[_campaignId].deadline,
@@ -170,28 +174,24 @@ contract Crowdfunding {
         campaigns[_campaignId].raisedAmount += msg.value;
 
         if (userProfileMap[msg.sender].contributions[_campaignId].amount > 0) {
-            userProfileMap[msg.sender].contributions[_campaignId].amount += msg.value;
+            userProfileMap[msg.sender].contributions[_campaignId].amount += msg
+                .value;
         } else {
-            userProfileMap[msg.sender].contributions[_campaignId] = Contribution(_campaignId, msg.value);
+            userProfileMap[msg.sender].contributions[
+                _campaignId
+            ] = Contribution(_campaignId, msg.value);
             userProfileMap[msg.sender].contributedCampaignIds.push(_campaignId);
         }
-        
+
         campaigns[_campaignId].contributors.push(msg.sender);
 
-
         emit ContributeCompleted(_campaignId, msg.sender, msg.value);
-
     }
 
     // Function to close a campaign
     function cancelCampaign(
         uint256 _campaignId
-    ) external onlyCreator(_campaignId) {
-        require(
-            campaigns[_campaignId].state == State.OPEN,
-            "Campaign is not open"
-        );
-
+    ) external onlyCreator(_campaignId) onlyOpen(_campaignId) {
         refund(_campaignId);
 
         campaigns[_campaignId].state = State.CANCEL;
@@ -205,30 +205,42 @@ contract Crowdfunding {
         require(success);
     }
 
-    function withdraw(uint256 _campaignId) internal onlyCreator(_campaignId) onlyOpen(_campaignId) afterDeadline(_campaignId) {
-        Campaign storage campaign = campaigns[_campaignId];
-        require(campaign.raisedAmount >= campaign.goal, "Campaign did not reach its goal");
-
-        uint256 amount = campaign.raisedAmount;
-        campaign.raisedAmount = 0;
-        campaign.state = State.SUCCESS;
-        payable(msg.sender).transfer(amount);
+    function withdraw(uint256 _campaignId) internal {
+        address to = campaigns[_campaignId].creator;
+        uint256 amount = campaigns[_campaignId].raisedAmount;
+        payTo(to, amount);
+        emit WithdrawCompleted(_campaignId, to, amount);
     }
 
-    function refund(uint256 _campaignId, address _to) internal {
-        require(campaigns[_campaignId].state == State.OPEN, "Campaign must be open to request refund");
-        require(msg.sender != campaigns[_campaignId].creator, "Creator cannot request refund");
+    function refund(
+        uint256 _campaignId,
+        address _to
+    ) internal onlyOpen(_campaignId) {
         require(
-            block.timestamp > campaigns[_campaignId].deadline && 
-            campaigns[_campaignId].raisedAmount < campaigns[_campaignId].goal, 
+            msg.sender != campaigns[_campaignId].creator,
+            "Creator cannot request refund"
+        );
+        require(
+            block.timestamp > campaigns[_campaignId].deadline &&
+                campaigns[_campaignId].raisedAmount <
+                campaigns[_campaignId].goal,
             "Campaign deadline has not passed or the campaign is successful; in either case, you cannot withdraw"
-            );
+        );
 
-        require(userProfileMap[msg.sender].contributions[_campaignId].amount > 0, "Nothing to be refunded");
-        payTo(_to, userProfileMap[msg.sender].contributions[_campaignId].amount);
-        emit RefundCompleted(_campaignId, _to, userProfileMap[msg.sender].contributions[_campaignId].amount);
+        require(
+            userProfileMap[msg.sender].contributions[_campaignId].amount > 0,
+            "Nothing to be refunded"
+        );
+        payTo(
+            _to,
+            userProfileMap[msg.sender].contributions[_campaignId].amount
+        );
+        emit RefundCompleted(
+            _campaignId,
+            _to,
+            userProfileMap[msg.sender].contributions[_campaignId].amount
+        );
         userProfileMap[msg.sender].contributions[_campaignId].amount = 0;
-
     }
 
     function refund(uint256 _campaignId) internal {
@@ -243,7 +255,9 @@ contract Crowdfunding {
         }
     }
 
-    function requestWithdraw(uint256 _campaignId) external onlyCreator(_campaignId) {
+    function requestWithdraw(
+        uint256 _campaignId
+    ) external onlyCreator(_campaignId) onlyOpen(_campaignId) {
         // an external function call by users to request withdraw
         // require: state is not CANCEL/CLOSE/SUCCESS; enough money is raised before deadline;
         // the msg.sender is project creator
@@ -251,18 +265,19 @@ contract Crowdfunding {
         // fundraising is ended and no more contributors are allowed
         // the campaign will be marked as SUCCESS after requestWithdraw;
 
-        withdraw(_campaignId);
+        require(
+            campaigns[_campaignId].raisedAmount >= campaigns[_campaignId].goal,
+            "Campaign did not reach its goal"
+        );
 
+        withdraw(_campaignId);
+        campaigns[_campaignId].state = State.SUCCESS;
     }
 
-    function requestRefund(uint256 _campaignId) external {
+    function requestRefund(uint256 _campaignId) external onlyOpen(_campaignId) {
         // an external function call by users to request refund
         // require: state is not CANCEL/CLOSE/SUCCESS a; the deadline is passed and does not raised enough money;
         // the campaign will be marked as CLOSE after requestRefund
-        require(
-            campaigns[_campaignId].state == State.OPEN,
-            "Campaign must be open to request refund"
-        );
 
         require(
             msg.sender != campaigns[_campaignId].creator,
@@ -328,16 +343,27 @@ contract Crowdfunding {
         return campaigns[_campaignId].contributors;
     }
 
-
-    function getContributedCampaigns() public view returns (Contribution[] memory) {
-        Contribution[] memory contributions = new Contribution[](userProfileMap[msg.sender].contributedCampaignIds.length);
-        for (uint256 i = 0; i < userProfileMap[msg.sender].contributedCampaignIds.length; i++) {
-            uint256 campaignId = userProfileMap[msg.sender].contributedCampaignIds[i];
-            contributions[i] = userProfileMap[msg.sender].contributions[campaignId];
+    function getContributedCampaigns()
+        public
+        view
+        returns (Contribution[] memory)
+    {
+        Contribution[] memory contributions = new Contribution[](
+            userProfileMap[msg.sender].contributedCampaignIds.length
+        );
+        for (
+            uint256 i = 0;
+            i < userProfileMap[msg.sender].contributedCampaignIds.length;
+            i++
+        ) {
+            uint256 campaignId = userProfileMap[msg.sender]
+                .contributedCampaignIds[i];
+            contributions[i] = userProfileMap[msg.sender].contributions[
+                campaignId
+            ];
         }
 
         return contributions;
-
     }
 
     function getCreatedCampaigns() public view returns (Campaign[] memory) {
