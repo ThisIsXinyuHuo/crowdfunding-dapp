@@ -2,7 +2,7 @@ import ButtonVariant from "../components/ButtonVariant";
 import Slogan from "../components/Slogan"
 import { useParams } from "react-router-dom";
 
-const ContributeCampaign = (campaign) => {
+const ContributeCampaign = ({campaign}) => {
     const { id } = useParams();
 
     const project = (id == 1) ? {
@@ -30,21 +30,17 @@ const ContributeCampaign = (campaign) => {
 
     return (
         
-      <div className="min-h-screen flex  justify-center sm:items-center ">
+      <div className="min-h-screen flex  justify-center sm:items-center flex-row">
 
-        <div className=" w-[1100px] h-[500px] flex flex-col sm:flex-row items-center bg-gray-100 rounded-xl"> 
-         
+        <div className=" w-[1100px] h-[500px] flex flex-col sm:flex-row items-center bg-gray-100 rounded-xl relative "> 
+
          <div className="p2-2   text-center sm:text-left sm:w-[50%] flex flex-col ml-7">
             
-          <h1
-            className="text-3xl md:text-4xl xl:text-6xl font-bold
-          tracking-tight "
-          >
-            <p className="mb-3"> Contribute Today, </p>
-
-          
-            <span> Make the World Better !</span>
-          </h1>
+         <img
+                        src={project.imageURL}
+                        alt={project.title}
+                        className="rounded-xl h-full object-cover w-full"
+                    />
            
         </div>
 
@@ -58,8 +54,17 @@ const ContributeCampaign = (campaign) => {
               <h3 className="text-2xl md:text-6xl lg:text-3xl font-bold tracking-tight mb-1">
                 { project.title }
               </h3>
+              <div className="flex justify-start space-x-2">
+                                <small className="text-gray-700">
+                                <span className="font-bold">Creator: </span> {project.name}
+                                </small>
+                                <small className="texy-gray-500 font-bold">
+                                    {project.backer} Contributor{project?.backer == 1 ? '' : 's'}
+
+                                </small>
+                            </div>
               <p className="text-sm  tracking-tight mb-1 text-gray-500">
-                { project.description}
+              <span className="font-bold">Description: </span> { project.description}
               </p>
             </div>
 
@@ -105,15 +110,31 @@ const ContributeCampaign = (campaign) => {
                   <small>{project.raised} ETH Raised</small>
                   <small className='flex justify-start items-center'>Goal: {project.goal} ETH</small>
             </div>
-
+                <div className=" bottom-6 right-6 absolute">
+                  <ButtonVariant 
+                    type = "button"
+                    text = "Withdraw"
+                    style= "bg-gray-600 hover:bg-gray-700 ml-4"
+                  />
+                  <ButtonVariant 
+                    type = "button"
+                    text = "Cancel"
+                    style= "bg-gray-600 hover:bg-gray-700 ml-4"
+                  />
+                  <ButtonVariant 
+                    type = "button"
+                    text = "Refund"
+                    style= "bg-gray-600 hover:bg-gray-700 ml-4"
+                  />
+                </div>
             </div>
            
           </div>
 
-          
-       
-      
-          
+
+
+         
+   
         </div>
         
       </div>

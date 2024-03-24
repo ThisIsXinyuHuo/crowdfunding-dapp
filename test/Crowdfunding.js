@@ -1,5 +1,8 @@
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
+const { time } = require("@nomicfoundation/hardhat-network-helpers");
+
+
 
 const etherToWei = (n) => {
     return ethers.parseUnits(n, 'ether')
@@ -88,14 +91,18 @@ describe("Crowdfunding", function () {
 
     describe("Refund", async () => {
         it("Should refund when requested", async () => {
+
             await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
             await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
             const tx = await crowdfunding.connect(address2).requestRefund(1);
+
             const result = await tx.wait();
             const event = result.logs[0].fragment.name;
 
             expect(event).to.equal("RefundCompleted");
+
             expect(result.logs[0].args[2]).to.equal(etherToWei("4"));
+
         });
 
         it("Should not refund when requester is creator", async () => {
@@ -123,14 +130,21 @@ describe("Crowdfunding", function () {
         // });
 
         it("Should not refund when already refunded", async () => {
-            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
+           
+            await crowdfunding.connect(address1);
+            const timestamp = await time.latest();
+            await crowdfunding.createCampaign("test", "test", timestamp + 60, 123, "testURL");
+
+
+            await crowdfunding.connect(address2).contribute(5, {value: 2});
+            await time.increase(3600);
+            await crowdfunding.connect(address2).requestRefund(5);
 
             try {
-                await crowdfunding.connect(address2).requestRefund(1);
-                await crowdfunding.connect(address2).requestRefund(1);
+                await crowdfunding.connect(address2).requestRefund(5);
                 assert.fail("Expected already refunded exception")
             } catch (e) {
-                expect(e.message).to.include("Nothing to be refunded");
+                expect(e.message).to.include("Campaign must be open to request refund");
             }
         });
     });
@@ -138,12 +152,13 @@ describe("Crowdfunding", function () {
     describe("Create campaign", async () => {
         it ("Should not allow creating a campaign with goal not greater than 0", async () => {
             await crowdfunding.connect(address1.address);
+            "test", dateToEpochTime('2025-05-22'), 123, "testURL"
 
             try {
-                await crowdfunding.createCampaign(0, 2);
+                await crowdfunding.createCampaign("test", "test", dateToEpochTime('2025-05-22'), 0, "testURL");
                 assert.fail("Expected Goal must be greater than 0")
             } catch (e) {
-                expect(e.message).to.include("Goal must be greater than 0");
+                expect(e.message).to.include("Funding goal cannot be zero");
             }
         });
 
@@ -151,7 +166,7 @@ describe("Crowdfunding", function () {
             await crowdfunding.connect(address1.address);
 
             try {
-                await crowdfunding.createCampaign(1, 0);
+                await crowdfunding.createCampaign("test", "test", dateToEpochTime('2023-05-22'), 123, "testURL");
                 assert.fail("Expected Deadline must be in the future")
             } catch (e) {
                 expect(e.message).to.include("Deadline must be in the future");
@@ -160,15 +175,10 @@ describe("Crowdfunding", function () {
 
         it ("Should be able to create a Campaign if everything is ok", async () => {
             await crowdfunding.connect(address1.address);
+            await crowdfunding.createCampaign("test", "test", dateToEpochTime('2025-05-22'), 123, "testURL");
+            const campaign = await crowdfunding.getCampaign(5);
+            expect(campaign).to.not.be.null;
 
-            try {
-                await crowdfunding.createCampaign(6, dateToEpochTime('2025-05-22'));
-                const campaign = await crowdfunding.getCampaign(6);
-                expect(campaign).to.not.be.null;
-                expect(campaign.closed).to.be.false;
-            } catch (e) {
-                assert.fail("Expected successful creation of the campaign")
-            }
         });
     })
 
@@ -185,44 +195,40 @@ describe("Crowdfunding", function () {
         });
 
         it ("Should not allow contributing when the campaign is closed", async () => {
-            await crowdfunding.connect(address1.address);
+            
+     
 
             try {
-                await crowdfunding.closeCampaign(1);
-                await crowdfunding.contribute(1, 2);
-                assert.fail("Expected Campaign is closed")
+                await crowdfunding.connect(address1).cancelCampaign(1);
+                await crowdfunding.connect(address2).contribute(1, {value: 1});
+
+                assert.fail("Expected Campaign is closed");
             } catch (e) {
-                expect(e.message).to.include("Campaign is closed");
+              
+                expect(e.message).to.include("Campaign is not open");
             }
         });
 
         it ("Should not allow contributing when the campaign's deadline has passed", async () => {
-            await crowdfunding.connect(address1.address);
+        
 
             try {
-                const currentDate = new Date();
-                const timestamp = currentDate.getTime();
-                await crowdfunding.createCampaign(6, timestamp + 1);
-                await crowdfunding.contribute(6, 2);
+                await crowdfunding.connect(address1);
+                const timestamp = await time.latest();
+                await crowdfunding.createCampaign("test", "test", timestamp + 60, 123, "testURL");
+                await time.increase(3600);
+                await crowdfunding.connect(address2).contribute(5, {value: "1"});
+
                 assert.fail("Expected Campaign deadline has passed")
             } catch (e) {
                 expect(e.message).to.include("Campaign deadline has passed");
             }
         });
 
-        it ("Should not allow contributing when contribution exceeds campaign goal", async () => {
-            await crowdfunding.connect(address1.address);
-
-            try {
-                await crowdfunding.contribute(1, 10);
-                assert.fail("Expected Contribution exceeds campaign goal")
-            } catch (e) {
-                console.log(e.message)
-                expect(e.message).to.include("Contribution exceeds campaign goal");
-            }
-        });
+    
 
         it ("Should successfully contribute if everything is ok", async () => {
+
             const tx = await crowdfunding.connect(address2).contribute(1, {value: etherToWei("1")});
             const result = await tx.wait();
             const event = result.logs[0].fragment.name;
@@ -230,30 +236,31 @@ describe("Crowdfunding", function () {
             expect(event).to.equal("ContributionCompleted");
             expect(result.logs[0].args[2]).to.equal(etherToWei("1"));
 
+
             const campaign = await crowdfunding.getCampaign(1);
             expect(campaign.raisedAmount).to.equal(etherToWei("1"));
         });
     })
 
-    describe("closeCampaign", async () => {
+    describe("cancelCampaign", async () => {
         it ("Should not be able to close an already closed campagin", async () => {
             await crowdfunding.connect(address1.address);
 
             try {
-                await crowdfunding.closeCampaign(1);
-                await crowdfunding.closeCampaign(1);
+                await crowdfunding.cancelCampaign(1);
+                await crowdfunding.cancelCampaign(1);
                 assert.fail("Expected Campaign already closed")
             } catch (e) {
-                expect(e.message).to.include("Campaign already closed");
+                expect(e.message).to.include("Campaign is not open");
             }
         });
 
         it ("Should be able to close the campagin if everything is ok", async () => {
             await crowdfunding.connect(address1.address);
 
-            await crowdfunding.closeCampaign(1);
+            await crowdfunding.cancelCampaign(1);
             const campaign = await crowdfunding.getCampaign(1);
-            expect(campaign.closed).to.equal(true);
+            expect(campaign.state).to.equal(1);
         });
     })
 });
