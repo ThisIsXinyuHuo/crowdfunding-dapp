@@ -148,7 +148,10 @@ describe("Crowdfunding", function () {
                 await crowdfunding.connect(address2).requestRefund(5);
                 assert.fail("Expected already refunded exception")
             } catch (e) {
-                expect(e.message).to.include("Nothing to be refunded");
+
+                expect(e.message).to.include("Campaign is not open");
+
+              
             }
         });
 
@@ -167,10 +170,85 @@ describe("Crowdfunding", function () {
         });
     });
 
+    describe("Withdraw from campaign", async () => {
+
+        it ("Should not withdraw if requesters is not the creator", async () => {
+            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
+
+            try {
+                await crowdfunding.connect(address2).requestWithdraw(1);
+                assert.fail("Expected fails to withdrawn")
+            } catch (e) {
+                expect(e.message).to.include("Only campaign creator can call this function");
+            }
+        });
+
+        it ("Should not withdraw if the target amount isn't achieved", async () => {
+           
+            try {
+                await crowdfunding.connect(address1).requestWithdraw(1);
+                assert.fail("Expected fails to withdrawn")
+            } catch (e) {
+                expect(e.message).to.include("Campaign did not reach its goal");
+            }
+        });
+
+        it ("Should not withdraw if the campaign is not open", async () => {
+            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("200")});
+            await crowdfunding.connect(address1).requestWithdraw(1);
+           
+            try {
+                await crowdfunding.connect(address1).requestWithdraw(1);
+                assert.fail("Expected fails to withdrawn")
+            } catch (e) {
+                expect(e.message).to.include("Campaign is not open");
+            }
+        });
+
+        it ("Should success if everything is OK and the total contributed amount is transffered to creator", async () => {
+            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("200")});
+            const tx = await crowdfunding.connect(address1).requestWithdraw(1);
+            const result = await tx.wait();
+            const event = result.logs[0].fragment.name;
+            expect(event).to.equal("WithdrawCompleted");
+            expect(result.logs[0].args[2]).to.equal(etherToWei("200"));
+        });
+
+        
+
+       
+    })
+
+    
+
     describe("Create campaign", async () => {
+        it ("Should not allow creating a campaign with no title", async () => {
+            await crowdfunding.connect(address1.address);
+        
+
+            try {
+                await crowdfunding.createCampaign("", "test", dateToEpochTime('2025-05-22'), 0, "testURL");
+                assert.fail("Expected title must be non-empty")
+            } catch (e) {
+                expect(e.message).to.include("Title cannot be empty");
+            }
+        });
+
+        it ("Should not allow creating a campaign with no description", async () => {
+            await crowdfunding.connect(address1.address);
+        
+
+            try {
+                await crowdfunding.createCampaign("test", "", dateToEpochTime('2025-05-22'), 0, "testURL");
+                assert.fail("Expected description must be non-empty")
+            } catch (e) {
+                expect(e.message).to.include("Description cannot be empty");
+            }
+        });
+
         it ("Should not allow creating a campaign with goal not greater than 0", async () => {
             await crowdfunding.connect(address1.address);
-            "test", dateToEpochTime('2025-05-22'), 123, "testURL"
+          
 
             try {
                 await crowdfunding.createCampaign("test", "test", dateToEpochTime('2025-05-22'), 0, "testURL");
@@ -212,7 +290,19 @@ describe("Crowdfunding", function () {
             expect(campaign[7]).to.equal(etherToWei("4"));
         });
 
+        it ("Should not allow contributing when msg.sender is the creator", async () => {
+            try {
+                
+                await crowdfunding.connect(address1).contribute(1, {value: "1"});
+
+                assert.fail("Expected fail to contribute the campaign")
+            } catch (e) {
+                expect(e.message).to.include("Creator can not contribute to its own campaign");
+            }
+        });
+
         it ("Should not allow contributing when the campaign is closed", async () => {
+          
             try {
                 await crowdfunding.connect(address1).cancelCampaign(1);
                 await crowdfunding.connect(address2).contribute(1, {value: 1});
@@ -240,11 +330,12 @@ describe("Crowdfunding", function () {
     
 
         it ("Should successfully contribute if everything is ok", async () => {
+
             const tx = await crowdfunding.connect(address2).contribute(1, {value: etherToWei("1")});
             const result = await tx.wait();
             const event = result.logs[0].fragment.name;
 
-            expect(event).to.equal("ContributionCompleted");
+            expect(event).to.equal("ContributeCompleted");
             expect(result.logs[0].args[2]).to.equal(etherToWei("1"));
 
             const campaign = await crowdfunding.getCampaign(1);
