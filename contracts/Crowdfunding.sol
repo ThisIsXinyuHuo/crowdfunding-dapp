@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 // Import necessary libraries and interfaces
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "hardhat/console.sol";
 
 contract Crowdfunding {
@@ -66,6 +65,17 @@ contract Crowdfunding {
         uint256 amount
     );
 
+    event CampaignCancelled(
+        uint256 indexed campaignId,
+        address indexed creator
+    );
+
+    event ContributeCompleted(
+        uint256 indexed campaignId,
+        address indexed contributor,
+        uint256 amount
+    );
+
     // Modifier to ensure only campaign creator can call certain functions
     modifier onlyCreator(uint256 _campaignId) {
         require(
@@ -106,7 +116,7 @@ contract Crowdfunding {
         campaigns.push(campaign);
         userProfileMap[msg.sender].createdCampaigns.push(campaign);
 
-        emit CampaignCreated(numCampaigns, msg.sender, _goal, _deadline);
+        emit CampaignCreated(numCampaigns - 1, msg.sender, _goal, _deadline);
     }
 
     // Function to contribute funds to a campaign
@@ -135,10 +145,12 @@ contract Crowdfunding {
             Contribution(_campaignId, msg.value)
         );
         campaigns[_campaignId].contributors.push(msg.sender);
+
+        emit ContributeCompleted(_campaignId, msg.sender, msg.value);
     }
 
     // Function to close a campaign
-    function closeCampaign(
+    function cancelCampaign(
         uint256 _campaignId
     ) external onlyCreator(_campaignId) {
         require(
@@ -163,10 +175,11 @@ contract Crowdfunding {
         campaigns[_campaignId].state = State.CANCEL;
 
         //emit action
+        emit CampaignCancelled(_campaignId, msg.sender);
     }
 
-    function payTo(address to, uint256 amount) internal {
-        (bool success, ) = payable(to).call{value: amount}("");
+    function payTo(address _to, uint256 _amount) internal {
+        (bool success, ) = payable(_to).call{value: _amount}("");
         require(success);
     }
 
@@ -178,15 +191,6 @@ contract Crowdfunding {
     }
 
     function refund(uint256 _campaignId, address _to) internal {
-        require(
-            campaigns[_campaignId].state == State.OPEN,
-            "Campaign must be open to request refund"
-        );
-        require(
-            msg.sender != campaigns[_campaignId].creator,
-            "Creator cannot request refund"
-        );
-
         for (
             uint256 i = 0;
             i < userProfileMap[msg.sender].contributions.length;
@@ -237,7 +241,25 @@ contract Crowdfunding {
         // an external function call by users to request refund
         // require: state is not CANCEL/CLOSE/SUCCESS a; the deadline is passed and does not raised enough money;
         // the campaign will be marked as CLOSE after requestRefund
+        require(
+            campaigns[_campaignId].state == State.OPEN,
+            "Campaign must be open to request refund"
+        );
+
+        require(
+            msg.sender != campaigns[_campaignId].creator,
+            "Creator cannot request refund"
+        );
+
+        require(
+            block.timestamp > campaigns[_campaignId].deadline &&
+                campaigns[_campaignId].raisedAmount <
+                campaigns[_campaignId].goal,
+            "Campaign deadline has not passed or the campaign is successful; in either case, you cannot withdraw"
+        );
+
         refund(_campaignId, msg.sender);
+        campaigns[_campaignId].state = State.CLOSE;
     }
 
     // Function signature for external verification
