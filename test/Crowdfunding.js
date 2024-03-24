@@ -91,11 +91,16 @@ describe("Crowdfunding", function () {
 
     describe("Refund", async () => {
         it("Should refund when requested", async () => {
+            await crowdfunding.connect(address1);
+            const timestamp = await time.latest();
+            await crowdfunding.createCampaign("test", "test", timestamp + 60, etherToWei("10"), "testURL");
 
+            await crowdfunding.connect(address2).contribute(5, {value: etherToWei("2")});
+            await crowdfunding.connect(address2).contribute(5, {value: etherToWei("2")});
 
-            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
-            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
-            const tx = await crowdfunding.connect(address2).requestRefund(1);
+            await time.increase(3600);
+
+            const tx = await crowdfunding.connect(address2).requestRefund(5);
 
 
             const result = await tx.wait();
@@ -232,13 +237,13 @@ describe("Crowdfunding", function () {
     
 
         it ("Should successfully contribute if everything is ok", async () => {
-
+          
 
             const tx = await crowdfunding.connect(address2).contribute(1, {value: etherToWei("1")});
             const result = await tx.wait();
             const event = result.logs[0].fragment.name;
 
-            expect(event).to.equal("ContributionCompleted");
+            expect(event).to.equal("ContributeCompleted");
             expect(result.logs[0].args[2]).to.equal(etherToWei("1"));
 
 
