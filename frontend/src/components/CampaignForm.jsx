@@ -118,7 +118,7 @@ const CampaignForm = () => {
             <div className="flex justify-center items-center mt-5">
             <ButtonVariant type = "submit" 
             text = "C R E A T E"
-            style = "px-10 py-5 text-lg"/>
+            style = "px-10 py-5 text-lg bg-gray-600 hover:bg-gray-700"/>
             </div>
             </div>
           </Form>
