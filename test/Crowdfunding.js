@@ -66,6 +66,24 @@ describe("Crowdfunding", function () {
                 expect(e.message).to.include("Invalid page number");
             }
         });
+
+        it("Should return all campaigns user has created", async () => {
+            await crowdfunding.connect(address1.address);
+            const user1Campaigns = await crowdfunding.connect(address1).getCreatedCampaigns();
+            const user2Campaigns = await crowdfunding.connect(address2).getCreatedCampaigns();
+
+            expect(user1Campaigns.length).to.equal(5);
+            expect(user2Campaigns.length).to.equal(0);
+        });
+
+        it("Should return all campaigns user has contributed to", async () => {
+            await crowdfunding.connect(address2).contribute(1, {value: etherToWei("2")});
+            const user1Campaigns = await crowdfunding.connect(address1).getContributedCampaigns();
+            const user2Campaigns = await crowdfunding.connect(address2).getContributedCampaigns();
+
+            expect(user1Campaigns.length).to.equal(0);
+            expect(user2Campaigns.length).to.equal(1);
+        });
     });
 
     describe("Refund", async () => {

@@ -29,8 +29,8 @@ contract Crowdfunding {
     }
 
     struct Profile {
-        Crowdfunding.Contribution[] contributions;
-        Crowdfunding.Campaign[] createdCampaigns;
+        Contribution[] contributions;
+        Campaign[] createdCampaigns;
     }
 
     // Struct to represent a crowdfunding campaign
@@ -257,5 +257,13 @@ contract Crowdfunding {
         uint256 _campaignId
     ) public view returns (address[] memory) {
         return campaigns[_campaignId].contributors;
+    }
+
+    function getContributedCampaigns() public view returns (Contribution[] memory) {
+        return userProfileMap[msg.sender].contributions;
+    }
+
+    function getCreatedCampaigns() public view returns (Campaign[] memory) {
+        return userProfileMap[msg.sender].createdCampaigns;
     }
 }
