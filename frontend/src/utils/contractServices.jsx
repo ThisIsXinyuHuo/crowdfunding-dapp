@@ -1,10 +1,11 @@
 // import Crowdfunding from '../artifacts/contracts/Crowdfunding.sol/Crowdfunding.json';
 import { ethers } from 'ethers'
 import { setGlobalState, getGlobalState } from './globalState'
+import CrowdfundingArtifact from '../artifacts/contracts/Crowdfunding.sol/Crowdfunding.json'
 
-const contractAddress = ""
+const contractAddress = "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9"
 // const contractAbi = abi.abi
-const contractAbi = ""
+const contractAbi = CrowdfundingArtifact.abi
 
 
 
@@ -100,11 +101,12 @@ export const createCampaign = async ({
     deadline
 }) => {
     try {
-        const contract = getCampaigns()
+        const contract = getContract()
         goal = ethers.utils.parseEther(goal)
         const transaction =  await contract.createCampaign(title, description, imageURL, goal, deadline);
         const receipt = transaction.wait()
         // update global state?
+        
     } catch (error) {
         window.alert(error.message)
     }
@@ -113,7 +115,7 @@ export const createCampaign = async ({
 
 export const getCampaigns = async () => {
     try {
-        const contract = getCampaigns()
+        const contract = getContract()
         const allCampaigns =  await contract.getCampaigns();
         // may need to format all the campaigns
 
