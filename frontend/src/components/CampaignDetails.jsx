@@ -29,17 +29,15 @@ const CampaignDetails = ({campaign}) => {
               <h3 className="text-2xl md:text-6xl lg:text-3xl font-bold tracking-tight mb-1">
                 { campaign.title }
               </h3>
-              <small className="text-gray-500">
-                                Deadline: {campaign.deadline}
-                            </small>
+             
 
                             <div className="flex justify-between items-center w-full pt-1">
                             <div className="flex justify-start space-x-2">
                                 <small className="text-gray-700">
-                                    {campaign.name}
+                                    Initiated by {campaign.name}                       
                                 </small>
                                 <small className="texy-gray-500 font-bold">
-                                    {campaign.backer} Contributor{campaign?.backer == 1 ? '' : 's'}
+                                    {campaign.backer} Contributor{campaign.backer <= 1 ? '' : 's'}
 
                                 </small>
                             </div>

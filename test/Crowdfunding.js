@@ -21,7 +21,7 @@ describe("Crowdfunding", function () {
         crowdfunding = await Crowdfunding.deploy();
 
         await Promise.all(["1", "2", "3", "4", "5"].map(async (idx) => {
-            await crowdfunding.createCampaign(idx, "test", dateToEpochTime('2025-05-22'), 123, "testURL");
+            await crowdfunding.createCampaign("test", idx, "test", dateToEpochTime('2025-05-22'), 123, "testURL");
         }));
     });
 
@@ -93,7 +93,7 @@ describe("Crowdfunding", function () {
         it("Should refund when requested", async () => {
             await crowdfunding.connect(address1);
             const timestamp = await time.latest();
-            await crowdfunding.createCampaign("test", "test", timestamp + 60, etherToWei("10"), "testURL");
+            await crowdfunding.createCampaign("test", "test", "test", timestamp + 60, etherToWei("10"), "testURL");
 
             await crowdfunding.connect(address2).contribute(5, {value: etherToWei("2")});
             await crowdfunding.connect(address2).contribute(5, {value: etherToWei("2")});
@@ -137,7 +137,7 @@ describe("Crowdfunding", function () {
         it("Should not refund when already refunded", async () => {
             await crowdfunding.connect(address1);
             const timestamp = await time.latest();
-            await crowdfunding.createCampaign("test", "test", timestamp + 60, 123, "testURL");
+            await crowdfunding.createCampaign("test","test", "test", timestamp + 60, 123, "testURL");
 
 
             await crowdfunding.connect(address2).contribute(5, {value: 2});
@@ -158,7 +158,7 @@ describe("Crowdfunding", function () {
         it("Should not refund when the campaign is still active", async () => {
             await crowdfunding.connect(address1);
             const timestamp = await time.latest();
-            await crowdfunding.createCampaign("test", "test", timestamp + 60, 123, "testURL");
+            await crowdfunding.createCampaign("test","test", "test", timestamp + 60, 123, "testURL");
             await crowdfunding.connect(address2).contribute(5, {value: 2});
 
             try {
@@ -222,12 +222,26 @@ describe("Crowdfunding", function () {
     
 
     describe("Create campaign", async () => {
+        
+
+        it ("Should not allow creating a campaign with no name", async () => {
+            await crowdfunding.connect(address1.address);
+        
+
+            try {
+                await crowdfunding.createCampaign("", "test", "test", dateToEpochTime('2025-05-22'), 123, "testURL");
+                assert.fail("Expected name must be non-empty")
+            } catch (e) {
+                expect(e.message).to.include("Name cannot be empty");
+            }
+        });
+
         it ("Should not allow creating a campaign with no title", async () => {
             await crowdfunding.connect(address1.address);
         
 
             try {
-                await crowdfunding.createCampaign("", "test", dateToEpochTime('2025-05-22'), 0, "testURL");
+                await crowdfunding.createCampaign("test", "", "test", dateToEpochTime('2025-05-22'), 123, "testURL");
                 assert.fail("Expected title must be non-empty")
             } catch (e) {
                 expect(e.message).to.include("Title cannot be empty");
@@ -239,7 +253,7 @@ describe("Crowdfunding", function () {
         
 
             try {
-                await crowdfunding.createCampaign("test", "", dateToEpochTime('2025-05-22'), 0, "testURL");
+                await crowdfunding.createCampaign("test", "test", "", dateToEpochTime('2025-05-22'), 123, "testURL");
                 assert.fail("Expected description must be non-empty")
             } catch (e) {
                 expect(e.message).to.include("Description cannot be empty");
@@ -251,7 +265,7 @@ describe("Crowdfunding", function () {
           
 
             try {
-                await crowdfunding.createCampaign("test", "test", dateToEpochTime('2025-05-22'), 0, "testURL");
+                await crowdfunding.createCampaign("test", "test", "test", dateToEpochTime('2025-05-22'), 0, "testURL");
                 assert.fail("Expected Goal must be greater than 0")
             } catch (e) {
                 expect(e.message).to.include("Funding goal cannot be zero");
@@ -262,7 +276,7 @@ describe("Crowdfunding", function () {
             await crowdfunding.connect(address1.address);
 
             try {
-                await crowdfunding.createCampaign("test", "test", dateToEpochTime('2023-05-22'), 123, "testURL");
+                await crowdfunding.createCampaign("test", "test", "test", dateToEpochTime('2023-05-22'), 123, "testURL");
                 assert.fail("Expected Deadline must be in the future")
             } catch (e) {
                 expect(e.message).to.include("Deadline must be in the future");
@@ -271,7 +285,7 @@ describe("Crowdfunding", function () {
 
         it ("Should be able to create a Campaign if everything is ok", async () => {
             await crowdfunding.connect(address1.address);
-            await crowdfunding.createCampaign("test", "test", dateToEpochTime('2025-05-22'), 123, "testURL");
+            await crowdfunding.createCampaign("test", "test", "test", dateToEpochTime('2025-05-22'), 123, "testURL");
             const campaign = await crowdfunding.getCampaign(5);
             expect(campaign).to.not.be.null;
 
@@ -287,7 +301,7 @@ describe("Crowdfunding", function () {
             const campaign = await crowdfunding.getCampaign(1);
             expect(contributedCampaigns.length).to.equal(1);
             expect(contributedCampaigns[0][1]).to.equal(etherToWei("4"));
-            expect(campaign[7]).to.equal(etherToWei("4"));
+            expect(campaign[8]).to.equal(etherToWei("4"));
         });
 
         it ("Should not allow contributing when msg.sender is the creator", async () => {
@@ -317,7 +331,7 @@ describe("Crowdfunding", function () {
             try {
                 await crowdfunding.connect(address1);
                 const timestamp = await time.latest();
-                await crowdfunding.createCampaign("test", "test", timestamp + 60, 123, "testURL");
+                await crowdfunding.createCampaign("test", "test", "test", timestamp + 60, 123, "testURL");
                 await time.increase(3600);
                 await crowdfunding.connect(address2).contribute(5, {value: "1"});
 

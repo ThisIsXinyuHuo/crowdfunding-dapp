@@ -1,28 +1,55 @@
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import ButtonVariant from './ButtonVariant';
+import { createCampaign } from '../utils/contractServices';
+import { ToastContainer, toast } from 'react-toastify'
+import "react-toastify/dist/ReactToastify.css";
+import * as Yup from 'yup';
+
+
 const CampaignForm = () => {
     const initialValues = {
         name: "",
         title: "",
-        descrpiton: "",
+        description: "",
         goal: "",
         deadline: "",
-        imageUrl: ""
+        imageURL: ""
     };
 
-    const handleSubmit = () =>{
+    const handleSubmit = async (values) =>{
+      await createCampaign(values)
+      console.log({values})
+      toast.success(JSON.stringify(values));
+    };
+
+    const validationSchema = Yup.object().shape({
+      name: Yup.string()
+        .min(2, 'Name must be at least 2 characters')
+        .required('Name is required'),
+      title: Yup.string()
+        .min(2, 'Title must be at least 2 characters')
+        .required('Title is required'),
+      description: Yup.string()
+        .min(10, 'Description must be at least 10 characters')
+        .required('Description is required'),
+      goal: Yup.number()
+        .min(0.1, 'Goal must be at least 0.1')
+        .required('Goal is required'),
+      deadline: Yup.date()
+        .min(new Date(), 'Deadline must be in the future')
+        .required('Deadline is required'),
+      imageURL: Yup.string()
+        .url('Image URL is not valid')
+  
+    });
+
     
-    };
-
-    const validate = () => {
-
-    };
 
     return (
         <Formik
         initialValues = {initialValues}
         onSubmit = {handleSubmit}
-        validate = {validate}
+        validationSchema={validationSchema}
         >
         {({ isSubmitting }) => (
         <div className='flex justify-center '>
@@ -41,7 +68,7 @@ const CampaignForm = () => {
               name="name" 
               placeholder = "Write your name"
               className="py-4 sm:px-5 px-4 border-[1px] outline-none border-gray-900 bg-transparent text-black text-sm placeholder:text-gray-400 rounded-lg sm:min-w-[250px]"/>
-              <ErrorMessage name="name" component="div" className="error" />
+              <ErrorMessage name="name" component="div" className="text-xs text-red-700" />
               </label>
             </div>
 
@@ -55,7 +82,7 @@ const CampaignForm = () => {
               name="title"
               placeholder = "Write a titile"
               className="py-4 sm:px-5 px-4 border-[1px] outline-none border-gray-900 bg-transparent text-black text-sm placeholder:text-gray-400 rounded-lg sm:min-w-[250px]"/>
-              <ErrorMessage name="title" component="div" className="error" />
+              <ErrorMessage name="title" component="div" className="text-xs text-red-700" />
               </label>
             </div>
 
@@ -70,7 +97,7 @@ const CampaignForm = () => {
               rows = {10}
               placeholder = "Write your campaigns's description"
               className="py-4 sm:px-5 px-4 border-[1px] outline-none border-gray-900 bg-transparent text-black text-sm placeholder:text-gray-400 rounded-lg sm:min-w-[250px]"/>
-              <ErrorMessage name="description" component="div" className="error" />
+              <ErrorMessage name="description" component="div" className="text-xs text-red-700" />
               </label>
             </div>
 
@@ -85,7 +112,7 @@ const CampaignForm = () => {
               step="0.1"
               placeholder = "Write your campaigns's funding goal in the unit of ETH, e.g. 1 ETH"
               className="py-4 sm:px-5 px-4 border-[1px] outline-none border-gray-900 bg-transparent text-black text-sm placeholder:text-gray-400 rounded-lg sm:min-w-[250px]"/>
-              <ErrorMessage name="goal" component="div" className="error" />
+              <ErrorMessage name="goal" component="div" className="text-xs text-red-700" />
               </label>
             </div>
 
@@ -98,7 +125,7 @@ const CampaignForm = () => {
               <Field type="date" 
               name="deadline" 
               className = "py-4 sm:px-5 px-4 border-[1px] outline-none border-gray-900 bg-transparent text-black text-sm placeholder:text-gray-400 rounded-lg sm:min-w-[250px]"/>
-              <ErrorMessage name="deadline" component="div" className="error" />
+              <ErrorMessage name="deadline" component="div" className="text-xs text-red-700" />
               </label>
             </div>
 
@@ -109,17 +136,19 @@ const CampaignForm = () => {
               Image
               </span>
               <Field type="url" 
-              name="imageUrl"
+              name="imageURL"
               placeholder = "Gives the image URL for your campaign"
               className = "py-4 sm:px-5 px-4 border-[1px] outline-none border-gray-900 bg-transparent text-black text-sm placeholder:text-gray-400 rounded-lg sm:min-w-[250px]"/>
-              <ErrorMessage name="imageUrl" component="div" className="error" />
+              <ErrorMessage name="imageUrl" component="div" className="text-xs text-red-700" />
               </label>
             </div>
             <div className="flex justify-center items-center mt-5">
             <ButtonVariant type = "submit" 
             text = "C R E A T E"
             style = "px-10 py-5 text-lg bg-gray-600 hover:bg-gray-700"/>
+    
             </div>
+            <ToastContainer />
             </div>
           </Form>
           </div>
