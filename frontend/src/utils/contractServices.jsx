@@ -2,8 +2,9 @@
 import { ethers } from 'ethers'
 import { setGlobalState, getGlobalState } from './globalState'
 import CrowdfundingArtifact from '../artifacts/contracts/Crowdfunding.sol/Crowdfunding.json'
+import { dateToEpochTime } from '../utils/helpers'
 
-const contractAddress = "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9"
+const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 // const contractAbi = abi.abi
 const contractAbi = CrowdfundingArtifact.abi
 
@@ -60,9 +61,19 @@ export const walletListener = async () => {
         console.log("Account was disconnected");
     }
 
+
+
     window.ethereum.on('accountsChanged', accountChanged);
     window.ethereum.on('connect', connect);
     window.ethereum.on('disconnect', disconnect);
+
+   
+
+    return () => {
+        window.ethereum.off('accountsChanged', accountChanged);
+        window.ethereum.off('connect', connect);
+        window.ethereum.off('disconnect', disconnect);
+      }
 
     
 
@@ -88,24 +99,36 @@ export const getContract = async () => {
 
         return contract
     } else {
-        alert("No Ethereum browser extension detected. Please install MetaMask extension.")
         throw new Error("No Ethereum browser extension detected")
     }
 }
 
 export const createCampaign = async ({
+    name,
     title,
     description,
-    imageURL,
+    deadline,
     goal,
-    deadline
+    imageURL
 }) => {
     try {
-        const contract = getContract()
-        goal = ethers.utils.parseEther(goal)
-        const transaction =  await contract.createCampaign(title, description, imageURL, goal, deadline);
+        const contract = await getContract()
+        console.log(goal)
+        
+        goal = ethers.utils.parseEther(goal.toString())
+        deadline = dateToEpochTime(deadline)
+        alert(JSON.stringify({
+            title,
+            description,
+            deadline,
+            goal,
+            imageURL
+        }))
+        
+        const transaction =  await contract.createCampaign(name, title, description, deadline, goal, imageURL);
         const receipt = transaction.wait()
         // update global state?
+        console.log("successful!")
         
     } catch (error) {
         window.alert(error.message)
@@ -115,11 +138,15 @@ export const createCampaign = async ({
 
 export const getCampaigns = async () => {
     try {
-        const contract = getContract()
-        const allCampaigns =  await contract.getCampaigns();
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
+        const contract = new ethers.Contract(contractAddress, contractAbi, provider)
+
+        const allCampaigns =  await contract['getCampaigns()']();
         // may need to format all the campaigns
 
-        setGlobalState('allCampaigns', allCampaigns)
+        setGlobalState('allCampaigns', formatCampaigns(allCampaigns))
+
+       
 
     } catch (error) {
         window.alert(error.message)
@@ -129,11 +156,12 @@ export const getCampaigns = async () => {
 
 export const getCampaign = async (id) => {
     try {
-        const contract = getCampaigns()
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
+        const contract = new ethers.Contract(contractAddress, contractAbi, provider)
+
         const campaign =  await contract.getCampaign(id);
         // may need to format all the campaigns
-
-        setGlobalState('campaign', campaign)
+        return formatCampaign(campaign)
     } catch (error) {
         window.alert(error.message)
     }
@@ -166,5 +194,27 @@ export const getContributors = async (id) => {
         window.alert(error.message)
     }
 }
+
+const formatCampaign = (campaign) => {
+    return {
+        id: campaign.id.toNumber(),
+        name: campaign.name,
+        creator: campaign.creator.toLowerCase(),
+        title: campaign.title,
+        goal: parseInt(campaign.goal._hex) / 10 ** 18,
+        description: campaign.description,
+        deadline: new Date(campaign.deadline.toNumber() * 1000).toISOString().split('T')[0],
+        imageURL: campaign.imageURL,
+        raised: parseInt(campaign.raisedAmount._hex) / 10 ** 18,
+        state: campaign.state,
+        backer: campaign.contributiors ? (campaign.contributiors.length): 0,
+        backers: campaign.contributiors
+
+    }
+}
+
+const formatCampaigns = (campaigns) =>
+  campaigns
+    .map(formatCampaign)
 
 

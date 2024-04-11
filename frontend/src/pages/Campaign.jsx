@@ -1,9 +1,29 @@
 import { useParams } from "react-router-dom";
 import CampaignDetails from "../components/CampaignDetails";
-const Campaign = ({project}) => {
-    const { id } = useParams();
+import { getCampaign } from "../utils/contractServices";
+import { useState, useEffect } from "react";
 
-    const campaign = (id == 1) ? {
+const Campaign = () => {
+    const { id } = useParams();
+    const [campaign, setCampaign] = useState(null);
+
+    useEffect(() => {
+      // Function to fetch campaign details when the component mounts
+      const fetchCampaignDetail = async () => {
+        try {
+          // Fetch campaign details using your getCampaign(id) function
+          const campaignData = await getCampaign(id);
+          setCampaign(campaignData); // Set campaign details in state
+        } catch (error) {
+          console.error('Error fetching campaign details:', error);
+          // Handle error (e.g., display error message)
+        }
+      };
+  
+      fetchCampaignDetail(); // Call the fetchCampaignDetail function
+    }, [id]);
+
+    const project = (id == 1) ? {
         id: "1",
         name: "Xinyu",
         title: "Help animals!",
@@ -28,8 +48,11 @@ const Campaign = ({project}) => {
 
     return (
        
-           
-           <CampaignDetails campaign={campaign}/>
+           <div>
+             {campaign ? ( <CampaignDetails campaign={campaign}/>) :
+            <p>Loading campaign details...</p>}
+           </div>
+         
          
     )
 }

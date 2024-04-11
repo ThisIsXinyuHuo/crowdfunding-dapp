@@ -38,6 +38,7 @@ contract Crowdfunding {
     struct Campaign {
         uint256 id;
         address creator;
+        string name;
         string title;
         string description;
         uint256 goal;
@@ -79,7 +80,6 @@ contract Crowdfunding {
         address indexed creator
     );
 
-
     event WithdrawCompleted(
         uint256 indexed campaignId,
         address indexed to,
@@ -114,7 +114,10 @@ contract Crowdfunding {
     }
 
     modifier onlyBeforeDeadline(uint256 _campaignId) {
-        require(block.timestamp < campaigns[_campaignId].deadline, "Campaign deadline has passed");
+        require(
+            block.timestamp < campaigns[_campaignId].deadline,
+            "Campaign deadline has passed"
+        );
         _;
     }
 
@@ -125,12 +128,14 @@ contract Crowdfunding {
 
     // Function to create a new crowdfunding campaign
     function createCampaign(
+        string memory _name,
         string memory _title,
         string memory _description,
         uint256 _deadline,
         uint256 _goal,
         string memory _imageURL
     ) external {
+        require(bytes(_name).length > 0, "Name cannot be empty");
         require(bytes(_title).length > 0, "Title cannot be empty");
         require(bytes(_description).length > 0, "Description cannot be empty");
         require(_deadline > block.timestamp, "Deadline must be in the future");
@@ -140,6 +145,7 @@ contract Crowdfunding {
         campaign.id = numCampaigns;
         numCampaigns += 1;
         campaign.creator = msg.sender;
+        campaign.name = _name;
         campaign.title = _title;
         campaign.description = _description;
         campaign.goal = _goal;
@@ -160,11 +166,18 @@ contract Crowdfunding {
     // Function to contribute funds to a campaign
     // the user pay ethers to the contract when calling this function (msg.value)
 
-    function contribute(uint256 _campaignId) 
-    onlyContributor(_campaignId, "Creator can not contribute to its own campaign")
-    onlyBeforeDeadline(_campaignId)
-    onlyOpen(_campaignId)
-    external payable {
+    function contribute(
+        uint256 _campaignId
+    )
+        external
+        payable
+        onlyContributor(
+            _campaignId,
+            "Creator can not contribute to its own campaign"
+        )
+        onlyBeforeDeadline(_campaignId)
+        onlyOpen(_campaignId)
+    {
         campaigns[_campaignId].raisedAmount += msg.value;
 
         if (userProfileMap[msg.sender].contributions[_campaignId].amount > 0) {
@@ -180,18 +193,12 @@ contract Crowdfunding {
         campaigns[_campaignId].contributors.push(msg.sender);
 
         emit ContributionCompleted(_campaignId, msg.sender, msg.value);
-
-
     }
 
     // Function to cancel a campaign
     function cancelCampaign(
         uint256 _campaignId
-
-    ) external 
-    onlyCreator(_campaignId) 
-    onlyOpen(_campaignId)
-    {
+    ) external onlyCreator(_campaignId) onlyOpen(_campaignId) {
         refund(_campaignId);
 
         campaigns[_campaignId].state = State.CANCEL;
@@ -205,8 +212,9 @@ contract Crowdfunding {
         require(success);
     }
 
-
-    function withdraw(uint256 _campaignId)  onlyCreator(_campaignId) onlyOpen(_campaignId) internal {
+    function withdraw(
+        uint256 _campaignId
+    ) internal onlyCreator(_campaignId) onlyOpen(_campaignId) {
         address to = campaigns[_campaignId].creator;
         uint256 amount = campaigns[_campaignId].raisedAmount;
         payTo(to, amount);
@@ -216,8 +224,11 @@ contract Crowdfunding {
     function refund(
         uint256 _campaignId,
         address _to
-    ) internal onlyOpen(_campaignId) onlyContributor(_campaignId, "Creator cannot request refund") {
-        
+    )
+        internal
+        onlyOpen(_campaignId)
+        onlyContributor(_campaignId, "Creator cannot request refund")
+    {
         require(
             block.timestamp > campaigns[_campaignId].deadline &&
                 campaigns[_campaignId].raisedAmount <
@@ -253,9 +264,7 @@ contract Crowdfunding {
         }
     }
 
-    function requestWithdraw(
-        uint256 _campaignId
-    ) external {
+    function requestWithdraw(uint256 _campaignId) external {
         // an external function call by users to request withdraw
         // require: state is not CANCEL/CLOSE/SUCCESS; enough money is raised before deadline;
         // the msg.sender is project creator
@@ -270,14 +279,12 @@ contract Crowdfunding {
 
         withdraw(_campaignId);
         campaigns[_campaignId].state = State.SUCCESS;
-
     }
 
     function requestRefund(uint256 _campaignId) external {
         // an external function call by users to request refund
         // require: state is not CANCEL/CLOSE/SUCCESS a; the deadline is passed and does not raised enough money;
         // the campaign will be marked as CLOSE after requestRefund
-
 
         refund(_campaignId, msg.sender);
         campaigns[_campaignId].state = State.CLOSE;

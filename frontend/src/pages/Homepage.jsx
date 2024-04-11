@@ -2,13 +2,24 @@
 
 import Slogan from '../components/Slogan'
 import AllCompaigns from "../components/AllCampaign";
-import { useWeb3React } from '@web3-react/core'
-import { injected } from '../utils/connectors';
+import { useGlobalState } from '../utils/globalState';
+import { getCampaigns } from '../utils/contractServices';
+import { useEffect } from 'react';
 
 
 
 const Homepage = () => {
-  const { activate, deactivate } = useWeb3React();
+
+  const [campaigns] = useGlobalState("allCampaigns")
+  const [account] = useGlobalState("account")
+  
+  useEffect( () => {
+    async function fetchData() {
+        await getCampaigns();
+    }
+    fetchData();
+  }, []);
+  
 
   const project1 = {
     id: "1",
@@ -34,14 +45,20 @@ const Homepage = () => {
     imageURL: "https://images.pexels.com/photos/20790/pexels-photo.jpg?auto=compress&cs=tinysrgb&h=350"
   }
 
-  const campaigns = [project1, project2]
+  const projects = [project1, project2]
+  console.log(campaigns)
   return (
     <>
 
 
       <Slogan text1 = "Empowering Dreams" text2 = "One Contribution at a Time"/>
 
-      <AllCompaigns campaigns = {campaigns}/>
+      {campaigns.length > 0 ? (
+        <AllCompaigns campaigns = {campaigns}/>
+      ):
+      (<p>No campaigns available.</p>)
+      }
+
       
 
     </>
