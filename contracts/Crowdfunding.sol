@@ -47,6 +47,7 @@ contract Crowdfunding {
         string imageURL;
         uint256 raisedAmount;
         State state;
+        uint256 nContributors;
     }
 
     struct Contribution {
@@ -155,6 +156,7 @@ contract Crowdfunding {
             : "URL of a default placeholder";
         campaign.raisedAmount = 0;
         campaign.state = State.OPEN;
+        campaign.nContributors = 0;
 
         campaigns.push(campaign);
         userProfileMap[msg.sender].createdCampaigns.push(campaign);
@@ -187,6 +189,7 @@ contract Crowdfunding {
                 _campaignId
             ] = Contribution(msg.sender, _campaignId, msg.value);
             userProfileMap[msg.sender].contributedCampaignIds.push(_campaignId);
+            campaigns[_campaignId].nContributors += 1;
         }
         campaignContribution[_campaignId].push(
             Contribution(msg.sender, _campaignId, msg.value)

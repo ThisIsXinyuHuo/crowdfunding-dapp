@@ -20,8 +20,6 @@ module.exports = {
         chainId: 31337,
         blockConformations: 1,
         allowUnlimitedContractSize: true,
-        gas: 2100000,
-        gasPrice: 8000000000
       },
       sepolia: {
         chainId: 11155111,
