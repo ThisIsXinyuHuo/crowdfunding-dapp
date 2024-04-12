@@ -134,9 +134,19 @@ const CampaignDetails = ({campaign, contributions}) => {
             <div className="p-5">
             
             <div className="flex flex-col">
+              <div className="flex flex-row justify-between">
               <h3 className="text-2xl md:text-6xl lg:text-3xl font-bold tracking-tight mb-1">
                 { campaign.title }
+        
               </h3>
+              <h3 className="lg:text-xl font-bold tracking-tight mb-1">
+                { campaign.state == 0 ? "OPEN" : "" }
+                { campaign.state == 1 ? "CANCELLED" : "" }
+                { campaign.state == 2 ? "SUCCESSFUL" : "" }
+                { campaign.state == 3 ? "CLOSED" : "" }
+        
+              </h3>
+              </div>
              
 
                             <div className="flex justify-between items-center w-full pt-1">
