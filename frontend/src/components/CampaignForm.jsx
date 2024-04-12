@@ -1,8 +1,9 @@
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import ButtonVariant from './ButtonVariant';
 import { createCampaign } from '../utils/contractServices';
-import { ToastContainer, toast } from 'react-toastify'
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from './toastMsg';
+import { ToastContainer } from 'react-toastify'
+
 import * as Yup from 'yup';
 
 
@@ -17,9 +18,12 @@ const CampaignForm = () => {
     };
 
     const handleSubmit = async (values) =>{
-      await createCampaign(values)
-      console.log({values})
-      toast.success(JSON.stringify(values));
+      const [success, msg] =  await createCampaign(values)
+      if (success){
+        toastSuccess(`Campaign "${values.title}" created successfully!`)
+      } else {
+        toastError(`Failed to create campaign: ${msg}`)
+      }
     };
 
     const validationSchema = Yup.object().shape({
@@ -148,7 +152,7 @@ const CampaignForm = () => {
             style = "px-10 py-5 text-lg bg-gray-600 hover:bg-gray-700"/>
     
             </div>
-            <ToastContainer />
+            <ToastContainer bodyClassName={() => "text-lg text-gray-600 text-center font-bold h-[100px] w-[300px]"}/>
             </div>
           </Form>
           </div>

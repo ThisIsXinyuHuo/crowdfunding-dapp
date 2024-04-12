@@ -6,7 +6,7 @@ const { setGlobalState, useGlobalState, getGlobalState } = createGlobalState({
   active: false, // not necessarily needed 
   allCampaigns: "",
   campaign: "",     // current campaign 
-  contributors: "",  // contributors of current campaign
+  contribution: "",  // contributors of current campaign
   // may add the campaigns that the current user contributes
 })
 

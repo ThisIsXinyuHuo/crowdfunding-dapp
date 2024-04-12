@@ -5,7 +5,6 @@ import CrowdfundingArtifact from '../artifacts/contracts/Crowdfunding.sol/Crowdf
 import { dateToEpochTime } from '../utils/helpers'
 
 const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-// const contractAbi = abi.abi
 const contractAbi = CrowdfundingArtifact.abi
 
 
@@ -31,55 +30,7 @@ export const connectWallet = async () => {
     
 }
 
-export const walletListener = async () => {
-    if (!window.ethereum) {
-        alert("No Ethereum browser extension detected. Please install MetaMask extension.")
-        return;
-    } 
 
-    const accountChanged = (result) => {
-        setGlobalState("account", result[0])
-        console.log("Account was changed");
-        if (result) {
-            setGlobalState("active", true);
-        } else {
-            setGlobalState("active", false);
-        }
-
-        
-    }
-
-    const connect = async() => {
-        const result = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        setGlobalState("account", result[0])
-        console.log("Account was connected");
-
-    }
-
-    const disconnect = () => {
-        setGlobalState("account", "")
-        console.log("Account was disconnected");
-    }
-
-
-
-    window.ethereum.on('accountsChanged', accountChanged);
-    window.ethereum.on('connect', connect);
-    window.ethereum.on('disconnect', disconnect);
-
-   
-
-    return () => {
-        window.ethereum.off('accountsChanged', accountChanged);
-        window.ethereum.off('connect', connect);
-        window.ethereum.off('disconnect', disconnect);
-      }
-
-    
-
-
-
-}
 
 export const getUserBalance = async (accountAddress) => {
     window.ethereum.request({method: "eth_getBalance", params: [String(accountAddress), "latest"]})
@@ -88,6 +39,8 @@ export const getUserBalance = async (accountAddress) => {
         // console.log(getGlobalState("accountBalance"))
     })
 }
+
+
 
 export const getContract = async () => {
     const account = getGlobalState("account")
@@ -117,21 +70,17 @@ export const createCampaign = async ({
         
         goal = ethers.utils.parseEther(goal.toString())
         deadline = dateToEpochTime(deadline)
-        alert(JSON.stringify({
-            title,
-            description,
-            deadline,
-            goal,
-            imageURL
-        }))
         
-        const transaction =  await contract.createCampaign(name, title, description, deadline, goal, imageURL);
+        const transaction =  await contract.createCampaign(name, title, description, deadline, goal, imageURL, {
+            from: getGlobalState("account"),
+          });
         const receipt = transaction.wait()
         // update global state?
-        console.log("successful!")
+        return [true, ""]
         
     } catch (error) {
-        window.alert(error.message)
+        console.log(error)
+        return [false, error.message]
     }
 
 }
@@ -145,10 +94,12 @@ export const getCampaigns = async () => {
         // may need to format all the campaigns
 
         setGlobalState('allCampaigns', formatCampaigns(allCampaigns))
+        console.log(allCampaigns)
 
        
 
     } catch (error) {
+        console.log(error)
         window.alert(error.message)
     }
 
@@ -163,6 +114,7 @@ export const getCampaign = async (id) => {
         // may need to format all the campaigns
         return formatCampaign(campaign)
     } catch (error) {
+        console.log(error)
         window.alert(error.message)
     }
     
@@ -170,27 +122,94 @@ export const getCampaign = async (id) => {
 
 export const contributeCampaign = async (id, amount) => {
     try {
-        const account = getGlobalState('connectedAccount')
+        const account = getGlobalState("account")
         const contract = await getContract()
-        amount = ethers.utils.parseEther(amount)
+        amount = ethers.utils.parseEther(amount.toString())
 
-        const transaction = await contract.contributeCampaign(id, {value : amount})
+        const transaction = await contract.contribute(id, {value : amount, from : account})
         const receipt = await transaction.wait()
+
+        return [true, ""]
 
         // update contributors?
     } catch (error) {
-        window.alert(error.message)
+        console.log(error)
+      
+        return [false, error.message]
     }
 }
 
-export const getContributors = async (id) => {
+export const cancelCampaign = async (id) => {
     try {
-        const contract = getCampaigns()
+        const account = getGlobalState("account")
+        const contract = await getContract()
+
+        const transaction = await contract.cancelCampaign(id,{
+            from: account,
+          })
+        const receipt = await transaction.wait()
+
+        return [true, ""]
+
+        // update contributors?
+    } catch (error) {
+        console.log(error)
+       
+        return [false,error.message]
+    }
+}
+
+export const refundCampaign = async (id) => {
+    try {
+        const account = getGlobalState("account")
+        const contract = await getContract()
+
+        const transaction = await contract.requestRefund(id, {
+            from: account,
+          })
+        const receipt = await transaction.wait()
+
+        return [true, ""]
+
+        // update contributors?
+    } catch (error) {
+        console.log(error)
+      
+        return [false, error.message]
+    }
+}
+
+export const withdrawCampaign = async (id) => {
+    try {
+        const account = getGlobalState("account")
+        const contract = await getContract()
+
+        const transaction = await contract.requestWithdraw(id, {
+            from: account,
+          })
+        const receipt = await transaction.wait()
+
+        return [true, ""]
+
+    } catch (error) {
+        console.log(error)
+      
+        return [false, error]
+    }
+}
+
+export const getContributions = async (id) => {
+    try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
+        const contract = new ethers.Contract(contractAddress, contractAbi, provider)
+
         const contributors =  await contract.getContributors(id);
         // may need to format all the campaigns
 
-        setGlobalState('contributors', contributors)
+        console.log(formatContributions(contributors))
+        return formatContributions(contributors);
     } catch (error) {
+        console.log(error)
         window.alert(error.message)
     }
 }
@@ -203,12 +222,11 @@ const formatCampaign = (campaign) => {
         title: campaign.title,
         goal: parseInt(campaign.goal._hex) / 10 ** 18,
         description: campaign.description,
-        deadline: new Date(campaign.deadline.toNumber() * 1000).toISOString().split('T')[0],
+        deadline: new Date(campaign.deadline.toNumber() * 1000),
         imageURL: campaign.imageURL,
         raised: parseInt(campaign.raisedAmount._hex) / 10 ** 18,
         state: campaign.state,
-        backer: campaign.contributiors ? (campaign.contributiors.length): 0,
-        backers: campaign.contributiors
+        nBacker: campaign.nContributors.toNumber()
 
     }
 }
@@ -216,5 +234,15 @@ const formatCampaign = (campaign) => {
 const formatCampaigns = (campaigns) =>
   campaigns
     .map(formatCampaign)
+
+
+const formatContribution = (contribution) => {
+    return {
+        user: contribution.user.toLowerCase(),
+        amount: parseInt(contribution.amount) / 10 ** 18
+    }
+}
+
+const formatContributions = (contributions) => contributions.map(formatContribution)
 
 

@@ -1,14 +1,122 @@
 import ContributeButton from "./ContributeButton"
 import ButtonVariant from "../components/ButtonVariant";
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import { contributeCampaign, cancelCampaign, refundCampaign, withdrawCampaign } from "../utils/contractServices";
+import { ToastContainer} from 'react-toastify'
+import { toastSuccess, toastError } from './toastMsg';
+import { setGlobalState, getGlobalState, useGlobalState } from '../utils/globalState'
+import {isDeadlinePassed} from "../utils/helpers"
 
 
-const CampaignDetails = ({campaign}) => {
+const CampaignDetails = ({campaign, contributions}) => {
+
+  const handleSubmit = async (values) => {
+
+    if (campaign.state != 0){
+      toastError("Campaign is not open!")
+      return
+    }
+    const account = getGlobalState("account")
+    if (campaign.creator == account){
+      toastError("Creator cannot contribute!")
+      return
+    }
+
+    if (isDeadlinePassed(campaign.deadline)){
+      toastError("Deadline has passed!")
+      return
+    }
+
+    const [success,msg] = await contributeCampaign(campaign.id, values.amount)
+    if (success){
+      toastSuccess('Successfully contributed!')
+    }else{
+      toastError(`Fail to contribute. ${msg}`)
+    }
+  }
+
+  const handleCancel = async () => {
+    const account = getGlobalState("account")
+
+    if (campaign.creator != account){
+      toastError("Only creator can cancel!")
+      return
+    }
+
+    if (campaign.state != 0){
+      toastError("Campaign is not open!")
+      return
+    }
+
+    const [success,msg] = await cancelCampaign(campaign.id)
+    if (success){
+      toastSuccess('Successfully cancelled!')
+    }else{
+      toastError(`Fail to cancel: ${msg}`)
+    }
+  }
+
+  const handleRefund = async () => {
+    const account = getGlobalState("account")
+
+
+
+    if (!((campaign.state == 0 && isDeadlinePassed(campaign.deadline) && campaign.raised < campaign.goal) || campaign.state == 3)){
+      toastError("Not able to refund!")
+      return
+    }
+
+    if (campaign.creator == account){
+      toastError("Ceator cannot refund!")
+      return
+    }
+
+    const [success,msg] = await refundCampaign(campaign.id)
+    if (success){
+      toastSuccess('Successfully refund')
+    }else{
+      toastError(`Fail to refund: ${msg}`)
+    }
+  }
+
+  const handleWithdraw = async () => {
+    const account = getGlobalState("account")
+
+    if (campaign.creator != account){
+      toastError("Only ceator can withdraw!")
+      return
+    }
+
+    if (!campaign.state == 0 || campaign.raised < campaign.goal){
+      toastError("Not able to withdraw!")
+      return
+    }
+
+
+
+    const [success,msg] = await withdrawCampaign(campaign.id)
+    if (success){
+      toastSuccess('Successfully withdraw')
+    }else{
+      toastError(`Fail to withdraw: ${msg}`)
+    }
+  }
+
+
+  const validationSchema = Yup.object().shape({
+    amount: Yup.number()
+      .min(0.00001 , 'Goal must be at least 0.00001')
+      .required('Goal is required'),
+  });
+
     return (
-        <div className="min-h-screen flex  justify-center sm:items-center ">
+      <div className="min-h-full">
+        <div className="min-h-[850px] flex  justify-center sm:items-center ">
 
-        <div className=" w-[1100px] h-[500px] flex flex-col sm:flex-row items-center bg-gray-100 rounded-xl"> 
+        <div className=" w-[1150px] h-[550px] flex flex-col sm:flex-row items-center bg-gray-100 rounded-xl  relative"> 
          
-         <div className="p2-2   text-center sm:text-left sm:w-[50%] flex flex-col ml-7">
+         <div className="p2-2   text-center sm:text-left sm:w-[50%] flex flex-col ml-5">
             
          <img
                         src={campaign.imageURL}
@@ -22,7 +130,7 @@ const CampaignDetails = ({campaign}) => {
           
 
 
-          <div className=" bg-white p2-2 rounded-xl text-center sm:text-left sm:w-[55%] flex flex-col m-5 shadow-lg">
+          <div className=" bg-white p2-2 rounded-xl text-center sm:text-left sm:w-[50%] flex flex-col m-5 shadow-lg">
             <div className="p-5">
             
             <div className="flex flex-col">
@@ -33,11 +141,12 @@ const CampaignDetails = ({campaign}) => {
 
                             <div className="flex justify-between items-center w-full pt-1">
                             <div className="flex justify-start space-x-2">
-                                <small className="text-gray-700">
-                                    Initiated by {campaign.name}                       
+                                <small className="text-gray-700 text-xs">
+                                    Initiated by {campaign.name} {campaign.creator}      
                                 </small>
+                  
                                 <small className="texy-gray-500 font-bold">
-                                    {campaign.backer} Contributor{campaign.backer <= 1 ? '' : 's'}
+                                    {campaign.nBacker} Contributor{campaign.nBacker <= 1 ? '' : 's'}
 
                                 </small>
                             </div>
@@ -51,29 +160,38 @@ const CampaignDetails = ({campaign}) => {
             </div>
 
             <div className="flex flex-row">
-              <div className="inner-card my-6 w-full lg:w-2/5 ">
+              <div className="inner-card my-2 w-full lg:w-2/5 ">
                 <p className="text-md font-bold font-sans text-gray">Targeted contribution</p>
                 <p className="text-sm font-bold font-sans text-gray-600 ">{campaign.goal} ETH </p>
                 <p className="text-md font-bold font-sans text-gray">Deadline</p>
-                <p className="text-sm font-bold font-sans text-gray-600 ">{campaign.deadline}</p>
+                <p className="text-sm font-bold font-sans text-gray-600 ">{campaign.deadline.toISOString().split('T')[0]}</p>
               </div>
 
 
-              <div className="inner-card my-6 w-full lg:w-2/5 "> 
+              <div className="inner-card my-2 w-full lg:w-2/5 "> 
                 <p className="text-md font-bold font-sans text-gray">Contribution amount:</p>
-            
 
-                <div className="flex flex-row mt-3">
-                  <input type="number" step = "0.01" placeholder="Type Here (ETH)"  className="input rounded-md outline outline-offset-2 outline-1 " />
-                  <ButtonVariant 
-                    type = "button"
-                    text = "Contribute"
-                    style= "bg-gray-600 hover:bg-gray-700 ml-4"
-                  />
-                  
-                  
+                <Formik 
+                  initialValues={{amount: ""}}
+                  onSubmit={handleSubmit}
+                  validationSchema={validationSchema}>
+                  <Form>
+                    <div className="flex flex-row mt-3">
+                      <Field type="number" name = "amount" step = "0.01" placeholder="Type Here (ETH)"  className="input rounded-md outline outline-offset-2 outline-1 " />
+                      
+                      <ButtonVariant 
+                        type = "submit"
+                        text = "Contribute"
+                        style= "bg-gray-600 hover:bg-gray-700 ml-4"
+                      />
+                      <ToastContainer bodyClassName={() => "text-lg text-gray-600 text-center font-bold h-[100px] w-[300px]"}/>
+
                 </div>
-                <p className="text-xs text-red-700 mt-3"> <span className="text-xs font-bold">NOTE : </span> Minimum contribution is 0.00001 ETH </p>
+                
+                <ErrorMessage name="amount" component="div" className="text-xs text-red-700" />
+                <p className="text-xs text-red-700 mt-2"> <span className="text-xs font-bold">NOTE : </span> Minimum contribution is 0.00001 ETH </p>
+                </Form>
+                </Formik>
               </div>
 
               
@@ -97,13 +215,45 @@ const CampaignDetails = ({campaign}) => {
            
           </div>
 
-          
-       
-      
+          <div className=" bottom-6 right-6 absolute">
+                  <ButtonVariant 
+                    type = "button"
+                    text = "Withdraw"
+                    style= "bg-gray-600 hover:bg-gray-700 ml-4"
+                    clickHandler={handleWithdraw}
+                  />
+                  <ButtonVariant 
+                    type = "button"
+                    text = "Cancel"
+                    style= "bg-gray-600 hover:bg-gray-700 ml-4"
+                    clickHandler={handleCancel}
+                  />
+                  <ButtonVariant 
+                    type = "button"
+                    text = "Refund"
+                    style= "bg-gray-600 hover:bg-gray-700 ml-4"
+                    clickHandler={handleRefund}
+                  />
+                </div>
           
         </div>
-        
+
       </div>
+      <div className="w-[1150px] mx-auto  rounded-xl">
+        <h3 className="text-xl font-bold mb-3">Contribution:</h3>
+        <ul>
+  
+            {contributions?.length > 0 ? 
+            (contributions.map((contribution, index) => (
+              <li key = {index}>
+                {contribution.user} -  <span className="font-bold"> {contribution.amount} ETH</span> 
+              </li>
+            ))):
+            ("No one has contributed yet!")}
+
+         </ul>
+      </div>
+    </div>  
     )
 }
 export default CampaignDetails
