@@ -1,13 +1,13 @@
 import ButtonVariant from './ButtonVariant';
 import { useNavigate } from "react-router-dom";
-import { buildContributeCampaignPath } from "./RouteConstants"
+import { buildCampaignPath } from "./RouteConstants"
 
 const ContributeButton = ({campaign}) => {
     const navigate = useNavigate();
 
     const routeChange = (event) => {
         event.stopPropagation();
-        navigate(buildContributeCampaignPath(campaign.id))
+        navigate(buildCampaignPath(campaign.id))
     };
 
 
