@@ -15,10 +15,12 @@ const dateToEpochTime = (date) => {
 
 describe("Crowdfunding", function () {
     beforeEach(async function () {
+
         [address1, address2, ...address] = await ethers.getSigners();
 
         Crowdfunding = await ethers.getContractFactory("Crowdfunding");
         crowdfunding = await Crowdfunding.deploy();
+        await crowdfunding.waitForDeployment();
 
         await Promise.all(["1", "2", "3", "4", "5"].map(async (idx) => {
             await crowdfunding.createCampaign("test", idx, "test", dateToEpochTime('2025-05-22'), 123, "testURL");
@@ -149,7 +151,7 @@ describe("Crowdfunding", function () {
                 assert.fail("Expected already refunded exception")
             } catch (e) {
 
-                expect(e.message).to.include("Campaign is not open");
+                expect(e.message).to.include("Nothing to be refunded");
 
               
             }
@@ -300,7 +302,7 @@ describe("Crowdfunding", function () {
             const contributedCampaigns = await crowdfunding.connect(address2).getContributedCampaigns();
             const campaign = await crowdfunding.getCampaign(1);
             expect(contributedCampaigns.length).to.equal(1);
-            expect(contributedCampaigns[0][1]).to.equal(etherToWei("4"));
+            expect(contributedCampaigns[0][2]).to.equal(etherToWei("4"));
             expect(campaign[8]).to.equal(etherToWei("4"));
         });
 
