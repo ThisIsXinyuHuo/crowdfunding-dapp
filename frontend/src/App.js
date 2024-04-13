@@ -14,7 +14,6 @@ import { getCampaigns } from "./utils/contractServices"
 
 function App() {
   const [account] = useGlobalState("account")
-  const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
   // const contractAbi = abi.abi
   const contractAbi = CrowdfundingArtifact.abi
   const provider = new ethers.providers.Web3Provider(window.ethereum)
@@ -79,17 +78,12 @@ function App() {
       return;
     } 
 
-
-    
     const listenToEvent = async() => {
       try {
-        
-
         contract.on('CampaignCreated', async () => {
           await getCampaigns();
           console.log('CampaignCreated!')
-        })  
-
+        });
       } catch (e) {
         console.log(e);
       }
@@ -100,9 +94,7 @@ function App() {
     return () => {
       contract.removeAllListeners('CampaignCreated');
     }
-    
-
-  }, [])
+  }, []);
 
   // listen to the ContributionCompleted
   useEffect(() => {
@@ -267,4 +259,5 @@ function App() {
   );
 }
 
+export const contractAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
 export default App;

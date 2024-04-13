@@ -3,8 +3,8 @@ import { ethers } from 'ethers'
 import { setGlobalState, getGlobalState } from './globalState'
 import CrowdfundingArtifact from '../artifacts/contracts/Crowdfunding.sol/Crowdfunding.json'
 import { dateToEpochTime } from '../utils/helpers'
+import { contractAddress } from '../App'
 
-const contractAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
 const contractAbi = CrowdfundingArtifact.abi
 
 
@@ -89,7 +89,6 @@ export const getCampaigns = async () => {
         // may need to format all the campaigns
 
         setGlobalState('allCampaigns', formatCampaigns(allCampaigns))
-        console.log(allCampaigns)
         return getGlobalState('allCampaigns');
     } catch (error) {
         console.log(error)
@@ -102,12 +101,14 @@ export const getCreatedCampaigns = async (address, dataSetter) => {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const contract = new ethers.Contract(contractAddress, contractAbi, provider);
 
-        const createdCampaigns = formatCampaigns(await contract.getCreatedCampaigns({from: address}));
-        console.log(createdCampaigns);
-        dataSetter(createdCampaigns);
-        return createdCampaigns; 
+        const createdCampaigns = await contract.getCreatedCampaigns({from: address});
+        const campaigns = await Promise.all(createdCampaigns.map((campaign) => {
+            return getCampaign(campaign.id);
+        }))
+        dataSetter(campaigns);
+        return campaigns; 
     } catch(error) {
-
+        console.log(error);
     }
 }
 
