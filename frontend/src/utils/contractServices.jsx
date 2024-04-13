@@ -4,7 +4,7 @@ import { setGlobalState, getGlobalState } from './globalState'
 import CrowdfundingArtifact from '../artifacts/contracts/Crowdfunding.sol/Crowdfunding.json'
 import { dateToEpochTime } from '../utils/helpers'
 
-const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+const contractAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
 const contractAbi = CrowdfundingArtifact.abi
 
 
@@ -15,29 +15,24 @@ export const connectWallet = async () => {
         return;
     } 
 
-    window.ethereum.request({method: "eth_requestAccounts"})
-    .then(
-        result => {
-            setGlobalState("account", result[0]);
-            setGlobalState("active", true);
-    })
-    .catch(
-        error => {
-            window.alert(error.message);
-    }) 
-
-    
-    
+    try {
+        const result = await window.ethereum.request({method: "eth_requestAccounts"});
+        setGlobalState("account", result[0]);
+        setGlobalState("active", true);
+    } catch(error) {
+        window.alert(error.message);
+    }
 }
 
 
 
 export const getUserBalance = async (accountAddress) => {
-    window.ethereum.request({method: "eth_getBalance", params: [String(accountAddress), "latest"]})
-    .then(balance => {
-        setGlobalState("accountBalance", ethers.utils.formatEther(balance))
-        // console.log(getGlobalState("accountBalance"))
-    })
+    let balance = ethers.utils.formatEther(
+        await window.ethereum.request({method: "eth_getBalance", params: [String(accountAddress), "latest"]})
+    );
+
+    setGlobalState("accountBalance", balance);
+    return getGlobalState("accountBalance");
 }
 
 
@@ -95,14 +90,43 @@ export const getCampaigns = async () => {
 
         setGlobalState('allCampaigns', formatCampaigns(allCampaigns))
         console.log(allCampaigns)
-
-       
-
+        return getGlobalState('allCampaigns');
     } catch (error) {
         console.log(error)
         window.alert(error.message)
     }
+}
 
+export const getCreatedCampaigns = async (address, dataSetter) => {
+    try { 
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const contract = new ethers.Contract(contractAddress, contractAbi, provider);
+
+        const createdCampaigns = formatCampaigns(await contract.getCreatedCampaigns({from: address}));
+        console.log(createdCampaigns);
+        dataSetter(createdCampaigns);
+        return createdCampaigns; 
+    } catch(error) {
+
+    }
+}
+
+export const getContributedCampaigns = async (address, dataSetter) => {
+    try { 
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const contract = new ethers.Contract(contractAddress, contractAbi, provider);
+
+        const contributedCampaigns = await contract.getContributedCampaigns({from: address});
+
+        const campaigns = await Promise.all(contributedCampaigns.map((campaign) => {
+            return getCampaign(campaign.campaignId);
+        }));
+        
+        dataSetter(campaigns);
+        return campaigns; 
+    } catch(error) {
+        console.log(error);
+    }
 }
 
 export const getCampaign = async (id) => {

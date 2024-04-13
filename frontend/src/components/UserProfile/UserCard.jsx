@@ -8,6 +8,7 @@ const UserCard = ({ user }) => {
                         <h3 className='font-bold text-lg'>Address: {user.address}</h3>
                         <p className="mt-1 text-gray-400 text-left text-base leading-tight truncate">
                         </p>
+                        <h3 className='font-bold text-lg'>Balance: {user.balance && `${user.balance} ETH`} </h3>
                     </div>
                 </div>
             </div>
